@@ -68,9 +68,12 @@ def shunting(text):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    node1 = node_init('x')
-    node2 = node_init('y')
-
-    node3 = node_concatenate(node1, node1)
-    print(node3[0].transitions[None][0].transitions)
-    print(to_table(None))
+    table = State_Table.from_token('x')
+    table2 = State_Table.from_token('y')
+    print(table)
+    print(table2)
+    table3 = State_Table.concat(table, table2)
+    table4 = State_Table.union(table, table2)
+    table3.print()
+    print("\n\n")
+    table4.print()
