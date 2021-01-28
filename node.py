@@ -1,90 +1,107 @@
 import uuid
+from collections import deque
 
-class State_Table:
-    def __init__(self):
+
+class NFA:
+    def __init__(self, token=None):
         self.start = str(uuid.uuid4())
         self.final = str(uuid.uuid4())
-        self.transition_function = {}
+        self.transitions = {}
+        if token:
+            self.transitions[self.start] = {token: {self.final}}
 
     def print(self):
-        for k, v in self.transition_function.items():
+        print("Start: {}\nFinal: {}\n".format(self.start, self.final))
+        for k, v in self.transitions.items():
             print('{}: {}'.format(k, v))
+        print()
 
-    @classmethod
-    def from_token(cls, token):
-        table = cls()
-        table.transition_function[table.start] = {token: [table.final]}
-        return table
+    def clone(self):
+        backup = NFA()
+        uuid_map = {self.start: backup.start,
+                    self.final: backup.final}
+
+        for k, v in self.transitions.items():
+            new_key = uuid_map.setdefault(k, str(uuid.uuid4()))
+            entry = backup.transitions.setdefault(new_key, {})
+
+            for kk, sublist in v.items():
+                sub_entry = entry.setdefault(kk, set())
+                for item in sublist:
+                    new_uuid = uuid_map.setdefault(item, str(uuid.uuid4()))
+                    sub_entry.add(new_uuid)
+
+        return backup
+
+    def eclosure(self, entry):
+        path = deque([entry])
+        closure = []
+        while path:
+            entry = path.popleft()
+            if entry in self.transitions:
+                closure.append(entry)
+                inputs = self.transitions[entry]
+                if None in inputs:
+                    path.extend(inputs[None])
+
+        return closure
+
+    def traverse(self, closure_set):
+        union_inputs = {}
+        for state in closure_set:
+            for k, v in self.transitions[state].items():
+                input = union_inputs.setdefault(k, set())
+                union_inputs[k] = input.union(v)
+
+        del union_inputs['']
+        for k, v in union_inputs.items():
+            union_inputs[k] = list(v)
+        return union_inputs
+
+    def finals(self):
+
+        return NotImplementedError
+
 
     @classmethod
     def concat(cls, x, y):
-        table = cls()
-        table.transition_function.update(x.transition_function)
-        table.transition_function.update(y.transition_function)
-        x_final = table.transition_function.setdefault(x.final, {})
-        y_final = table.transition_function.setdefault(y.final, {})
-        table_start = table.transition_function.setdefault(table.start, {})
+        new_NFA = cls()
+        new_NFA.transitions.update(x.transitions)
+        new_NFA.transitions.update(y.transitions)
+        x_final = new_NFA.transitions.setdefault(x.final, {})
+        y_final = new_NFA.transitions.setdefault(y.final, {})
+        table_start = new_NFA.transitions.setdefault(new_NFA.start, {})
 
-        x_final[None] = [y.start]
-        table_start[None] = [x.start]
-        y_final[None] = [table.final]
-        return table
+        x_final[''] = {y.start}
+        table_start[''] = {x.start}
+        y_final[''] = {new_NFA.final}
+        return new_NFA
 
     @classmethod
     def union(cls, x, y):
-        table = cls()
-        table.transition_function.update(x.transition_function)
-        table.transition_function.update(y.transition_function)
-        x_final = table.transition_function.setdefault(x.final, {})
-        y_final = table.transition_function.setdefault(y.final, {})
-        table_start = table.transition_function.setdefault(table.start, {})
+        new_NFA = cls()
+        new_NFA.transitions.update(x.transitions)
+        new_NFA.transitions.update(y.transitions)
+        x_final = new_NFA.transitions.setdefault(x.final, {})
+        y_final = new_NFA.transitions.setdefault(y.final, {})
+        table_start = new_NFA.transitions.setdefault(new_NFA.start, {})
 
-        x_final[None] = [table.final]
-        table_start[None] = [x.start, y.start]
-        y_final[None] = [table.final]
-        return table
+        x_final[''] = {new_NFA.final}
+        table_start[''] = {x.start, y.start}
+        y_final[''] = {new_NFA.final}
+        return new_NFA
 
     @classmethod
-    def
-class Node:
-    def __init__(self):
-        self.transitions = {}
+    def kleene_star(cls, x):
+        new_NFA = cls()
+        new_NFA.transitions.update(x.transitions)
+        x_final = new_NFA.transitions.setdefault(x.final, {})
+        table_start = new_NFA.transitions.setdefault(new_NFA.start, {})
+        x_final = x_final.setdefault('', set())
+        table_start = table_start.setdefault('', set())
 
-    def add(self, next_node, input=None):
-        dict_next = self.transitions.setdefault(input, [])
-        dict_next.append(next_node)
-
-
-def node_init(x: chr) -> list:
-    start, end = Node(), Node()
-    start.add(end, x)
-    return [start, end]
-
-
-def node_concatenate(x: list, y: list) -> list:
-    start, end = Node(), Node()
-    start.add(x[0])
-    x[1].add(y[0])
-    y[1].add(end)
-    return [start, end]
-
-
-def node_or(x: list, y: list) -> list:
-    start, end = Node(), Node()
-    start.add(x[0])
-    start.add(y[0])
-    x[1].add(end)
-    y[1].add(end)
-    return [start, end]
-
-
-def node_kleene(x: list) -> list:
-    start, end = Node(), Node()
-    start.add(x[0])
-    start.add(end)
-    x[1].add(x[0])
-    x[1].add(end)
-    return [start, end]
-
-def to_table(x: Node):
-    print(uuid.uuid4(), type(uuid.uuid4()))
+        x_final.add(x.start)
+        x_final.add(new_NFA.final)
+        table_start.add(x.start)
+        table_start.add(new_NFA.final)
+        return new_NFA

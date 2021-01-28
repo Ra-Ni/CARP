@@ -1,3 +1,4 @@
+import asyncio
 from collections import deque
 
 from node import *
@@ -68,12 +69,25 @@ def shunting(text):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    table = State_Table.from_token('x')
-    table2 = State_Table.from_token('y')
-    print(table)
-    print(table2)
-    table3 = State_Table.concat(table, table2)
-    table4 = State_Table.union(table, table2)
-    table3.print()
-    print("\n\n")
-    table4.print()
+    table = NFA('x')
+    table2 = NFA('y')
+    tabl4 = table.clone()
+    table3 = NFA.union(table.clone(), table2.clone())
+    table5 = NFA.concat(table3.clone(), table.clone())
+
+    table5.print()
+    s = table5.eclosure(table5.start)
+    print(s)
+    d = table5.traverse(s)
+    print(d)
+
+
+    #table4 = NFA.union(table2, table3)
+    #table5 = NFA.kleene_star(table4)
+    # table6 = table.clone()
+    # table.print()
+    # table2.print()
+    # table6.print()
+    #table3.print()
+    #table4.print()
+    #table5.print()
