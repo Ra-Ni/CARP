@@ -1,58 +1,69 @@
-==
-<>
-<
->
-<=
->=
-+
--
-*
-/
-=
-|
-&
-!
-?
-(
-)
 {
+    "OPERATORS": {
+        "==": "EQUAL",
+        "<>": "NOT EQUAL",
+        "<": "LESS THAN",
+        ">": "GREATER THAN",
+        "<=": "LESS THAN OR EQUAL",
+        ">=": "GREATER THAN OR EQUAL",
+        "+": "PLUS",
+        "-": "MINUS",
+        "*": "MULTIPLY",
+        "/": "SLASH",
+        "=": "ASSIGN",
+        "|": "OR",
+        "&": "AND",
+        "!": "EXCLAMATION POINT",
+        "?": "QUESTION MARK",
+        "(": "OPEN PARENTHESIS",
+        ")": "CLOSED PARENTHESIS",
+        "{": "OPEN FLOWER BRACKET",
+        "}": "CLOSE FLOWER BRACKET",
+        "[": "OPEN SQUARE BRACKET",
+        "]": "CLOSE SQUARE BRACKET",
+        ";": "SEMI COLON",
+        ",": "COMMA",
+        ".": "PERIOD",
+        ":": "COLON",
+        "::": "IDK WHAT THIS IS"
+    },
+    "RESERVED": {
+        "if": "IF",
+        "then": "THEN",
+        "else": "ELSE",
+        "integer": "INTEGER",
+        "float": "FLOAT",
+        "string": "STRING",
+        "void": "VOID",
+        "public": "PUBLIC",
+        "private": "PRIVATE",
+        "func": "FUNCTION",
+        "var": "VARIABLE",
+        "class": "CLASS",
+        "while": "WHILE",
+        "read": "READ",
+        "write": "WRITE",
+        "return": "RETURN",
+        "main": "MAIN",
+        "inherits": "INHERITS",
+        "break": "BREAK",
+        "continue": "CONTINUE"
+    },
+    "LANGUAGE" : {
+        "lowercase": "a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z",
+        "uppercase": "A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z",
+        "letter": "uppercase|lowercase",
+        "nonzero": "1|2|3|4|5|6|7|8|9",
+        "digit": "0|nonzero",
+        "space": "\\s",
+        "alphanum": "(letter)|(digit)|_",
+        "character": "(alphanum)|(space)",
+        "fraction": ". ((digit)* (nonzero))|0"
+    },
+    "TOKEN": {
+        "id": "(letter) (alphanum)*",
+        "string": "\" (character)* \"",
+        "integer": "((nonzero) (digit)*)|0",
+        "float": "(integer) (fraction) [e [+|-] integer]"
+    }
 }
-[
-]
-;
-,
-.
-:
-::
-
-if
-then
-else
-integer
-float
-string
-void
-public
-private
-func
-var
-class
-while
-read
-write
-return
-main
-inherits
-break
-continue
-
-letter::=[a-zA-Z]
-digit::=[0-9]
-nonzero::=[1-9]
-alphanum::=letter|digit|_
-space::=\s
-character::=alphanum|space
-id::=letter alphanum*
-fraction::=\. ((digit* nonzero)|0)
-string::=" character* "
-float::=integer fraction (e (\+|-)? integer)?
