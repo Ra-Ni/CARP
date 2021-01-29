@@ -7,9 +7,13 @@ class pNFA:
         self.initial_state = str(uuid.uuid4())
         self.final_states = str(uuid.uuid4())
         self.states = set()
+        self.input_symbols = set()
         self.transitions = {}
         if token:
-            self.transitions[self.initial_state] = {token: {self.final_states}}
+            self.transitions = {self.initial_state: {token: {self.final_states}},
+                                self.final_states: {}}
+            self.input_symbols.add(token)
+            self.states = set(self.transitions.keys())
 
     def print(self):
         print("Start: {}\nFinal: {}\n".format(self.initial_state, self.final_states))
@@ -17,7 +21,7 @@ class pNFA:
             print('{}: {}'.format(k, v))
         print()
 
-    def clone(self):
+    def copy(self):
         backup = pNFA()
         uuid_map = {self.initial_state: backup.initial_state,
                     self.final_states: backup.final_states}
@@ -31,7 +35,9 @@ class pNFA:
                 for item in sublist:
                     new_uuid = uuid_map.setdefault(item, str(uuid.uuid4()))
                     sub_entry.add(new_uuid)
-
+        backup.input_symbols = self.input_symbols
+        backup.states = set(backup.transitions.keys())
+        backup.states = backup.states.union(backup.final_states)
         return backup
 
     def normalize(self):
@@ -45,7 +51,8 @@ class pNFA:
                 buffer = list(next_state)
                 buffer = [transitions_map[buffer[i]] for i in range(len(buffer))]
                 self.transitions[state][input] = set(buffer)
-
+        self.print()
+        print(self.states)
         for key in list(self.transitions.keys()):
             self.transitions[transitions_map[key]] = self.transitions.pop(key)
 
@@ -56,14 +63,10 @@ class pNFA:
         self.states.add(final_state)
         self.transitions[final_state] = {}
 
-
-
-
-
     @classmethod
     def concat(cls, x, y):
         new_NFA = cls()
-        u, v = x.clone(), y.clone()
+        u, v = x.copy(), y.copy()
         new_NFA.transitions.update(u.transitions)
         new_NFA.transitions.update(v.transitions)
         u_final = new_NFA.transitions.setdefault(u.final_states, {})
@@ -73,12 +76,13 @@ class pNFA:
         table_start[''] = {u.initial_state}
         v_final[''] = {new_NFA.final_states}
         new_NFA.states = set(new_NFA.transitions.keys())
+        new_NFA.input_symbols = u.input_symbols.union(v.input_symbols)
         return new_NFA
 
     @classmethod
     def union(cls, x, y):
         new_NFA = cls()
-        u, v = x.clone(), y.clone()
+        u, v = x.copy(), y.copy()
         new_NFA.transitions.update(u.transitions)
         new_NFA.transitions.update(v.transitions)
         u_final = new_NFA.transitions.setdefault(u.final_states, {})
@@ -88,12 +92,13 @@ class pNFA:
         table_start[''] = {u.initial_state, v.initial_state}
         v_final[''] = {new_NFA.final_states}
         new_NFA.states = set(new_NFA.transitions.keys())
+        new_NFA.input_symbols = u.input_symbols.union(v.input_symbols)
         return new_NFA
 
     @classmethod
     def kleene_star(cls, x):
         new_NFA = cls()
-        u = x.clone()
+        u = x.copy()
         new_NFA.transitions.update(u.transitions)
         x_final = new_NFA.transitions.setdefault(u.final_states, {})
         table_start = new_NFA.transitions.setdefault(new_NFA.initial_state, {})
@@ -104,4 +109,5 @@ class pNFA:
         table_start.add(u.initial_state)
         table_start.add(new_NFA.final_states)
         new_NFA.states = set(new_NFA.transitions.keys())
+
         return new_NFA
