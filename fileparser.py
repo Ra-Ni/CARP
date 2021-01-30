@@ -1,15 +1,13 @@
 import json
 from collections import deque
-
+from codecs import decode
 from automata.fa.dfa import DFA
 from automata.fa.nfa import NFA
 from node import pNFA
 
 language = {
-
     '*': 0,
     '?': 0,
-    '-': 1,
     ' ': 1,
     '|': 2,
     '\\': 3,
@@ -18,6 +16,11 @@ language = {
     '(': 4,
     ')': 4,
 }
+
+escape_codes = {
+    '\\s': ' ',
+}
+
 
 def reader():
     with open('config') as json_file:
@@ -31,20 +34,25 @@ def shunting(text, reference):
     output = deque()
     tokens = deque(text)
 
-
     while tokens:
         token = tokens.popleft()
 
         if token not in language:
-            while tokens and tokens[0] not in language:
-                token += tokens.popleft()
-            if token in reference:
-
-                tokens.extendleft(reversed(list(reference[token])))
-            else:
+            if type(token) is pNFA:
                 output.append(token)
+            else:
 
-        elif token == '\\' and tokens:
+                while tokens and tokens[0] not in language and type(tokens[0]) is not pNFA:
+                    token += tokens.popleft()
+                if token in reference:
+                    if type(reference[token]) is not pNFA:
+                        tokens.extendleft(reversed(list(reference[token])))
+                    else:
+                        output.append(reference[token])
+                else:
+                    output.append(token)
+
+        elif token == "\\" and tokens:
             token += tokens.popleft()
             output.append(token)
 
@@ -75,7 +83,6 @@ def shunting(text, reference):
                     operation_complete = True
             operations.append(token)
 
-
     while operations:
         output.append(operations.pop())
 
@@ -88,34 +95,54 @@ def to_pNFA(result: deque):
     while result:
         current = result.popleft()
         if current not in language:
-            stack.append(pNFA(current))
+            if type(current) is pNFA:
+                stack.append(current)
+            else:
+                if current in escape_codes:
+                    current = escape_codes[current]
+                stack.append(pNFA(current))
         elif current == '*':
             stack.append(pNFA.kleene_star(stack.pop()))
-            test = stack[-1]
-            nfa = NFA(states=test.states, final_states=test.final_states, initial_state=test.initial_state, transitions=test.transitions, input_symbols=test.input_symbols)
-            dfa = DFA.from_nfa(nfa)
-            dfa.show_diagram('testing.png')
         elif current == ' ':
             second, first = stack.pop(), stack.pop()
             stack.append(pNFA.concat(first, second))
         elif current == '|':
             stack.append(pNFA.union(stack.pop(), stack.pop()))
-
+        elif current == '?':
+            stack.append(pNFA.option(stack.pop()))
     if len(stack) != 1:
         print("Stack not eq to 1 in to_pNFA")
 
     final = stack.pop()
 
-
     return final
 
 
-def parse_language(data):
-    for key, value in data.items():
+def parse(data):
+    reference = data['LANGUAGE']
+    language_dfas = {}
+    for key, value in reference.items():
+        ans = to_pNFA(shunting(value, reference))
+        # ans.normalize()
+        language_dfas[key] = ans
 
-        ans = to_pNFA(shunting(value, data))
+    reference = data['TOKEN'].copy()
+    reference.update(language_dfas)
+    for key, value in data['TOKEN'].items():
+        ans = shunting(value, reference)
 
-        ans.normalize()
+        ans = to_pNFA(ans)
+        reference[key] = ans
+
+
+    output = [reference[i] for i in data['TOKEN'].keys()]
+    while len(output) >= 2:
+        output.append(pNFA.union(output.pop(), output.pop()))
+    reference['total'] = output.pop()
+
+
+    for key, ans in reference.items():
+
         nfa = NFA(
             states=ans.states,
             input_symbols=ans.input_symbols,
@@ -125,54 +152,10 @@ def parse_language(data):
         )
 
         dfa = DFA.from_nfa(nfa)
-        # dfa = dfa.minify()
-
-
-        # states = dfa.states
-        # transition_states = ['q{}'.format(i) for i in range(len(states))]
-        # transitions_map = dict(zip(states, transition_states))
-        # for init_state, inputs in dfa.transitions.items():
-        #     for symbol, next_states in inputs.items():
-        #
-        #         dfa.transitions[init_state][symbol] = transitions_map[next_states]
-        #
-        # for init_state in list(dfa.transitions.keys()):
-        #     dfa.transitions[transitions_map[init_state]] = dfa.transitions.pop(init_state)
-        #
-        # dfa.states = set(transition_states)
-        #
-        # dfa.final_states = set([transitions_map[i] for i in dfa.final_states])
-        # dfa.initial_state = transitions_map[dfa.initial_state]
         dfa.simplify('q')
         dfa = dfa.minify()
-        # states = dfa.states
-        # transition_states = ['s{}'.format(i) for i in range(len(states))]
-        # transitions_map = dict(zip(states, transition_states))
-        # for init_state, inputs in dfa.transitions.items():
-        #     for symbol, next_states in inputs.items():
-        #         dfa.transitions[init_state][symbol] = transitions_map[next_states]
-        #
-        # for init_state in list(dfa.transitions.keys()):
-        #     dfa.transitions[transitions_map[init_state]] = dfa.transitions.pop(init_state)
-        #
-        # dfa.states = set(transition_states)
-        #
-        # dfa.final_states = set([transitions_map[i] for i in dfa.final_states])
-        # dfa.initial_state = transitions_map[dfa.initial_state]
-        #
-        # print(dfa.transitions)
-        # print(dfa.states)
-        # print(dfa.final_states)
         dfa.simplify('s')
-        dfa.show_diagram('{}.png'.format(key))
+        reference[key] = dfa
 
-        yield key, ans
-
-def parse(data):
-    languages_pnfa = parse_language(data['LANGUAGE'])
-
-    for key, value in languages_pnfa:
-
-        print()
-    #print(parse_language(data['LANGUAGE']))
-
+        dfa.show_diagram('img/{}.png'.format(key))
+    return reference
