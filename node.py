@@ -1,6 +1,8 @@
 import uuid
 from collections import deque
 
+from automata.fa.nfa import NFA
+
 
 class pNFA:
     def __init__(self, token=''):
@@ -10,7 +12,7 @@ class pNFA:
         self.final_states = {final_state}
         self.states = self.final_states.union({self.initial_state})
         self.input_symbols = set() if token == '' else {token}
-        self.transitions = {self.initial_state: {token: self.final_states},
+        self.transitions = {self.initial_state: {token: self.final_states.copy()},
                             final_state: {}}
 
     def print(self):
@@ -31,6 +33,7 @@ class pNFA:
             else:
                 for symbol, next_states in inputs.items():
                     input_set = transitions.setdefault(new_initial_state, {}).setdefault(symbol, set())
+
                     new_next_states = {uuid_map.setdefault(next_state, str(uuid.uuid4())) for next_state in next_states}
                     input_set.update(new_next_states)
                     transitions[new_initial_state][symbol] = input_set
@@ -150,5 +153,52 @@ class pNFA:
 
         # update the input symbols for new_NFA
         new_NFA.input_symbols.update(u.input_symbols)
+
+        return new_NFA
+
+    @classmethod
+    def option(cls, x):
+        new_NFA = cls()
+        u = x.copy()
+
+
+        # merge u into the new nfa
+        new_NFA.transitions.update(u.transitions)
+
+        # the final state in u is now the final state in new_NFA
+        for final_state in u.final_states:
+            input_set = new_NFA.transitions[final_state].setdefault('', set())
+            input_set.update(new_NFA.final_states)
+            new_NFA.transitions[final_state][''] = input_set
+
+        # the initial state of new_nfa points to its final states
+        # AND to u's initial state
+        input_set = new_NFA.transitions[new_NFA.initial_state]['']
+        input_set.update(new_NFA.final_states)
+        input_set.add(u.initial_state)
+        new_NFA.transitions[new_NFA.initial_state][''] = input_set
+
+        # update the states available for new_NFA
+        new_NFA.states = set(list(new_NFA.transitions.keys()))
+
+        # update the input symbols for new_NFA
+        new_NFA.input_symbols.update(u.input_symbols)
+
+        return new_NFA
+
+    @classmethod
+    def from_dfa(cls, x: NFA):
+        new_NFA = cls()
+
+        for init_state, inputs in x.transitions.items():
+            for symbol, next_state in inputs.items():
+                input_set = new_NFA.transitions.setdefault(init_state, {})
+                input_set = input_set.setdefault(symbol, set())
+                input_set.add(next_state)
+                new_NFA.transitions[init_state][symbol] = input_set
+        new_NFA.states = x.states.copy()
+        new_NFA.input_symbols = x.input_symbols.copy()
+        new_NFA.final_states = x.final_states.copy()
+        new_NFA.initial_state = x.initial_state
 
         return new_NFA
