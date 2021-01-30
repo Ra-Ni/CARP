@@ -309,11 +309,23 @@ class DFA(fa.FA):
         # adding edges
         for from_state, lookup in self.transitions.items():
             for to_label, to_state in lookup.items():
-                graph.add_edge(Edge(
-                    nodes[from_state],
-                    nodes[to_state],
-                    label=to_label
-                ))
+                edge = graph.get_edge(from_state, to_state)
+                # edge = graph.get_edge_list()
+                if edge:
+                    label = edge[0].__get_attribute__('label')
+                    label += ', {}'.format(to_label)
+                    graph.del_edge(from_state, to_state)
+                    graph.add_edge(Edge(nodes[from_state], nodes[to_state], label=label))
+
+
+
+                else:
+                    graph.add_edge(Edge(
+                        nodes[from_state],
+                        nodes[to_state],
+                        label=to_label
+                    ))
+
         if path:
             graph.write_png(path)
         return graph
