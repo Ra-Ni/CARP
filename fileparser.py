@@ -1,6 +1,8 @@
 import json
 from collections import deque
 from codecs import decode
+from math import ceil
+
 from automata.fa.dfa import DFA
 from automata.fa.nfa import NFA
 from node import pNFA
@@ -117,31 +119,53 @@ def to_pNFA(result: deque):
 
     return final
 
+def parse_reserved_words(data: dict) -> dict:
+    result = {}
+    for key, value in data.items():
+        stack = list(value)
+        stack.extend([' '] * (len(value) - 1))
+        result[key] = to_pNFA(deque(stack))
+
+    return result
+
+def parse_language(data: dict, keys: list) -> dict:
+    result = {}
+    for key in keys:
+        ans = shunting(data[key], data)
+        result[key] = to_pNFA(ans)
+
+    return result
+
+def parse_tokens(data: dict, keys: list) -> dict:
+    result = {}
+    for key in keys:
+        ans = shunting(data[key], data)
+        result[key] = to_pNFA(ans)
+
+    return result
+
+def unify(data: dict) -> pNFA:
+    stack = list(data.values())
+    while len(stack) > 1:
+        stack.append(pNFA.union(stack.pop(), stack.pop()))
+    return stack.pop()
 
 def parse(data):
-    reference = data['LANGUAGE']
-    language_dfas = {}
-    for key, value in reference.items():
-        ans = to_pNFA(shunting(value, reference))
-        # ans.normalize()
-        language_dfas[key] = ans
+    target = data['RESERVED']
 
-    reference = data['TOKEN'].copy()
-    reference.update(language_dfas)
-    for key, value in data['TOKEN'].items():
-        ans = shunting(value, reference)
-
-        ans = to_pNFA(ans)
-        reference[key] = ans
+    result = parse_reserved_words(target)
+    result['finalreserv'] = unify(result)
+    target = data['LANGUAGE']
+    buffer = parse_language(target, list(target.keys()))
+    result.update(buffer)
+    target = data['TOKEN'].copy()
+    result.update(target)
+    buffer = parse_tokens(result, list(target.keys()))
+    result.update(buffer)
 
 
-    output = [reference[i] for i in data['TOKEN'].keys()]
-    while len(output) >= 2:
-        output.append(pNFA.union(output.pop(), output.pop()))
-    reference['total'] = output.pop()
 
-
-    for key, ans in reference.items():
+    for key, ans in result.items():
 
         nfa = NFA(
             states=ans.states,
@@ -155,7 +179,9 @@ def parse(data):
         dfa.simplify('q')
         dfa = dfa.minify()
         dfa.simplify('s')
-        reference[key] = dfa
+        result[key] = dfa
 
         dfa.show_diagram('img/{}.png'.format(key))
-    return reference
+
+
+    return result
