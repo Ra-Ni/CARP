@@ -3,17 +3,15 @@ from collections import deque
 
 
 class pNFA:
-    def __init__(self, token=None):
+    def __init__(self, token=''):
+        final_state = str(uuid.uuid4())
+
         self.initial_state = str(uuid.uuid4())
-        self.final_states = str(uuid.uuid4())
-        self.states = set()
-        self.input_symbols = set()
-        self.transitions = {}
-        if token:
-            self.transitions = {self.initial_state: {token: {self.final_states}},
-                                self.final_states: {}}
-            self.input_symbols.add(token)
-            self.states = set(self.transitions.keys())
+        self.final_states = {final_state}
+        self.states = self.final_states.union({self.initial_state})
+        self.input_symbols = set() if token == '' else {token}
+        self.transitions = {self.initial_state: {token: self.final_states},
+                            final_state: {}}
 
     def print(self):
         print("Start: {}\nFinal: {}\n".format(self.initial_state, self.final_states))
@@ -22,92 +20,135 @@ class pNFA:
         print()
 
     def copy(self):
+
+        uuid_map = {}
+        transitions = {}
+        for initial_state, inputs in self.transitions.items():
+            new_initial_state = uuid_map.setdefault(initial_state, str(uuid.uuid4()))
+            if not inputs:
+                input_set = transitions.setdefault(new_initial_state, {}).setdefault('', set())
+                transitions[new_initial_state][''] = input_set
+            else:
+                for symbol, next_states in inputs.items():
+                    input_set = transitions.setdefault(new_initial_state, {}).setdefault(symbol, set())
+                    new_next_states = {uuid_map.setdefault(next_state, str(uuid.uuid4())) for next_state in next_states}
+                    input_set.update(new_next_states)
+                    transitions[new_initial_state][symbol] = input_set
+
         backup = pNFA()
-        uuid_map = {self.initial_state: backup.initial_state,
-                    self.final_states: backup.final_states}
-
-        for k, v in self.transitions.items():
-            new_key = uuid_map.setdefault(k, str(uuid.uuid4()))
-            entry = backup.transitions.setdefault(new_key, {})
-
-            for kk, sublist in v.items():
-                sub_entry = entry.setdefault(kk, set())
-                for item in sublist:
-                    new_uuid = uuid_map.setdefault(item, str(uuid.uuid4()))
-                    sub_entry.add(new_uuid)
+        backup.transitions = transitions
+        backup.initial_state = uuid_map[self.initial_state]
+        backup.final_states = {uuid_map[final_state] for final_state in self.final_states}
         backup.input_symbols = self.input_symbols
-        backup.states = set(backup.transitions.keys())
-        backup.states = backup.states.union(backup.final_states)
+        backup.states = set(list(backup.transitions.keys()))
         return backup
 
     def normalize(self):
-        num_transitions = len(self.states)
-        transition_states = ['q{}'.format(i) for i in range(num_transitions)]
+        transition_states = ['q{}'.format(i) for i in range(len(self.states))]
         transitions_map = dict(zip(self.states, transition_states))
-        transitions_map[self.final_states] = 'q{}'.format(num_transitions)
+        new_transitions = {}
 
-        for state, sub_dict in self.transitions.items():
-            for input, next_state in sub_dict.items():
-                buffer = list(next_state)
-                buffer = [transitions_map[buffer[i]] for i in range(len(buffer))]
-                self.transitions[state][input] = set(buffer)
-        self.print()
-        print(self.states)
+        for initial_state, inputs in self.transitions.items():
+            new_inputs = new_transitions.setdefault(initial_state, {})
+            for symbol, next_states in inputs.items():
+                buffer = [transitions_map[i] for i in next_states]
+
+                buffer = set(buffer)
+                self.transitions[initial_state][symbol] = buffer
+
+
         for key in list(self.transitions.keys()):
             self.transitions[transitions_map[key]] = self.transitions.pop(key)
 
-        self.final_states = transitions_map[self.final_states]
+        self.final_states = {transitions_map[i] for i in self.final_states}
         self.initial_state = transitions_map[self.initial_state]
-        self.states = {transitions_map[i] for i in self.states}
-        final_state = 'q{}'.format(num_transitions)
-        self.states.add(final_state)
-        self.transitions[final_state] = {}
+        self.states = set(transition_states)
+
 
     @classmethod
     def concat(cls, x, y):
         new_NFA = cls()
         u, v = x.copy(), y.copy()
+
+        # update new_NFA to contain the transitions for both u and v
         new_NFA.transitions.update(u.transitions)
         new_NFA.transitions.update(v.transitions)
-        u_final = new_NFA.transitions.setdefault(u.final_states, {})
-        v_final = new_NFA.transitions.setdefault(v.final_states, {})
-        table_start = new_NFA.transitions.setdefault(new_NFA.initial_state, {})
-        u_final[''] = {v.initial_state}
-        table_start[''] = {u.initial_state}
-        v_final[''] = {new_NFA.final_states}
-        new_NFA.states = set(new_NFA.transitions.keys())
+
+        # the final states of u point to the initial state of v
+        for final_state in u.final_states:
+            new_NFA.transitions[final_state][''] = {v.initial_state}
+
+        # the final states of v point to the final state of new_NFA
+        for final_state in v.final_states:
+            input_set = new_NFA.transitions[final_state].setdefault('', set())
+            input_set.update(new_NFA.final_states)
+            new_NFA.transitions[final_state][''] = input_set
+
+        # the initial state of new_NFA points to the initial state of u
+        new_NFA.transitions[new_NFA.initial_state][''] = {u.initial_state}
+
+        # the states of new_NFA are updated
+        new_NFA.states = set(list(new_NFA.transitions.keys()))
+
+        # the input symbols are unionized
         new_NFA.input_symbols = u.input_symbols.union(v.input_symbols)
+
         return new_NFA
 
     @classmethod
     def union(cls, x, y):
         new_NFA = cls()
         u, v = x.copy(), y.copy()
+
+        # update the transitions table for the new_NFA
         new_NFA.transitions.update(u.transitions)
         new_NFA.transitions.update(v.transitions)
-        u_final = new_NFA.transitions.setdefault(u.final_states, {})
-        v_final = new_NFA.transitions.setdefault(v.final_states, {})
-        table_start = new_NFA.transitions.setdefault(new_NFA.initial_state, {})
-        u_final[''] = {new_NFA.final_states}
-        table_start[''] = {u.initial_state, v.initial_state}
-        v_final[''] = {new_NFA.final_states}
-        new_NFA.states = set(new_NFA.transitions.keys())
+
+        # the final states of u and v are now the final states of new_NFA
+        final_states = u.final_states.union(v.final_states)
+        for final_state in final_states:
+            input_set = new_NFA.transitions[final_state].setdefault('', set())
+            input_set.update(new_NFA.final_states)
+            new_NFA.transitions[final_state][''] = input_set
+
+        # the initial states of u and v are now the initial state of new_NFA
+        new_NFA.transitions[new_NFA.initial_state][''] = {u.initial_state, v.initial_state}
+
+        # the states of new_NFA are its keys
+        new_NFA.states = set(list(new_NFA.transitions.keys()))
+
+        # the input symbols of new_NFA is union of u and v
         new_NFA.input_symbols = u.input_symbols.union(v.input_symbols)
+
         return new_NFA
 
     @classmethod
     def kleene_star(cls, x):
         new_NFA = cls()
         u = x.copy()
+
+        # merge u into the new nfa
         new_NFA.transitions.update(u.transitions)
-        x_final = new_NFA.transitions.setdefault(u.final_states, {})
-        table_start = new_NFA.transitions.setdefault(new_NFA.initial_state, {})
-        x_final = x_final.setdefault('', set())
-        table_start = table_start.setdefault('', set())
-        x_final.add(u.initial_state)
-        x_final.add(new_NFA.final_states)
-        table_start.add(u.initial_state)
-        table_start.add(new_NFA.final_states)
-        new_NFA.states = set(new_NFA.transitions.keys())
+
+        # the final state in u is now the final state in new_NFA
+        # AND the final states point back to u's initial state
+        for final_state in u.final_states:
+            input_set = new_NFA.transitions[final_state].setdefault('', set())
+            input_set.update(new_NFA.final_states)
+            input_set.add(u.initial_state)
+            new_NFA.transitions[final_state][''] = input_set
+
+        # the initial state of new_nfa points to its final states
+        # AND to u's initial state
+        input_set = new_NFA.transitions[new_NFA.initial_state]['']
+        input_set.update(new_NFA.final_states)
+        input_set.add(u.initial_state)
+        new_NFA.transitions[new_NFA.initial_state][''] = input_set
+
+        # update the states available for new_NFA
+        new_NFA.states = set(list(new_NFA.transitions.keys()))
+
+        # update the input symbols for new_NFA
+        new_NFA.input_symbols.update(u.input_symbols)
 
         return new_NFA
