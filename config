@@ -14,7 +14,9 @@
         "|": "OR",
         "&": "AND",
         "!": "EXCLAMATION POINT",
-        "?": "QUESTION MARK",
+        "?": "QUESTION MARK"
+    },
+    "PUNCTUATIONS": {
         "(": "OPEN PARENTHESIS",
         ")": "CLOSED PARENTHESIS",
         "{": "OPEN FLOWER BRACKET",
@@ -62,8 +64,8 @@
     },
     "TOKEN": {
         "id": "(letter) (alphanum)*",
-        "string": "\" (character)* \"",
         "integer": "((nonzero) (digit)*)|0",
-        "float": "(integer) (fraction) [e [+|-] integer]"
+        "float": "(integer) (fraction) [e [+|-] integer]",
+        "string": "\" (character)* \""
     }
 }
