@@ -6,16 +6,18 @@ from automata.fa.nfa import NFA
 from node import pNFA
 
 language = {
-    '\\': 1,
-    '[': 2,
-    ']': 2,
-    '(': 3,
-    ')': 3,
-    '*': 4,
-    '?': 4,
-    '-': 5,
-    ' ': 5,
-    '|': 7}
+
+    '*': 0,
+    '?': 0,
+    '-': 1,
+    ' ': 1,
+    '|': 2,
+    '\\': 3,
+    '[': 4,
+    ']': 4,
+    '(': 4,
+    ')': 4,
+}
 
 def reader():
     with open('config') as json_file:
@@ -64,16 +66,15 @@ def shunting(text, reference):
 
         else:
             token_priority = language[token]
+            operation_complete = False
+            while operations and not operation_complete:
+                operation_priority = language[operations[-1]]
+                if token_priority >= operation_priority:
+                    output.append(operations.pop())
+                else:
+                    operation_complete = True
+            operations.append(token)
 
-            if not operations:
-                op_priority = -1
-            else:
-                op_priority = language[operations[-1]]
-
-            if token_priority <= op_priority:
-                output.append(token)
-            else:
-                operations.append(token)
 
     while operations:
         output.append(operations.pop())
@@ -90,8 +91,13 @@ def to_pNFA(result: deque):
             stack.append(pNFA(current))
         elif current == '*':
             stack.append(pNFA.kleene_star(stack.pop()))
+            test = stack[-1]
+            nfa = NFA(states=test.states, final_states=test.final_states, initial_state=test.initial_state, transitions=test.transitions, input_symbols=test.input_symbols)
+            dfa = DFA.from_nfa(nfa)
+            dfa.show_diagram('testing.png')
         elif current == ' ':
-            stack.append(pNFA.concat(stack.pop(), stack.pop()))
+            second, first = stack.pop(), stack.pop()
+            stack.append(pNFA.concat(first, second))
         elif current == '|':
             stack.append(pNFA.union(stack.pop(), stack.pop()))
 
@@ -102,6 +108,7 @@ def to_pNFA(result: deque):
 
 
     return final
+
 
 def parse_language(data):
     for key, value in data.items():
@@ -121,40 +128,42 @@ def parse_language(data):
         # dfa = dfa.minify()
 
 
-        states = dfa.states
-        transition_states = ['q{}'.format(i) for i in range(len(states))]
-        transitions_map = dict(zip(states, transition_states))
-        for init_state, inputs in dfa.transitions.items():
-            for symbol, next_states in inputs.items():
-
-                dfa.transitions[init_state][symbol] = transitions_map[next_states]
-
-        for init_state in list(dfa.transitions.keys()):
-            dfa.transitions[transitions_map[init_state]] = dfa.transitions.pop(init_state)
-
-        dfa.states = set(transition_states)
-
-        dfa.final_states = set([transitions_map[i] for i in dfa.final_states])
-        dfa.initial_state = transitions_map[dfa.initial_state]
+        # states = dfa.states
+        # transition_states = ['q{}'.format(i) for i in range(len(states))]
+        # transitions_map = dict(zip(states, transition_states))
+        # for init_state, inputs in dfa.transitions.items():
+        #     for symbol, next_states in inputs.items():
+        #
+        #         dfa.transitions[init_state][symbol] = transitions_map[next_states]
+        #
+        # for init_state in list(dfa.transitions.keys()):
+        #     dfa.transitions[transitions_map[init_state]] = dfa.transitions.pop(init_state)
+        #
+        # dfa.states = set(transition_states)
+        #
+        # dfa.final_states = set([transitions_map[i] for i in dfa.final_states])
+        # dfa.initial_state = transitions_map[dfa.initial_state]
+        dfa.simplify('q')
         dfa = dfa.minify()
-        states = dfa.states
-        transition_states = ['s{}'.format(i) for i in range(len(states))]
-        transitions_map = dict(zip(states, transition_states))
-        for init_state, inputs in dfa.transitions.items():
-            for symbol, next_states in inputs.items():
-                dfa.transitions[init_state][symbol] = transitions_map[next_states]
-
-        for init_state in list(dfa.transitions.keys()):
-            dfa.transitions[transitions_map[init_state]] = dfa.transitions.pop(init_state)
-
-        dfa.states = set(transition_states)
-
-        dfa.final_states = set([transitions_map[i] for i in dfa.final_states])
-        dfa.initial_state = transitions_map[dfa.initial_state]
-
-        print(dfa.transitions)
-        print(dfa.states)
-        print(dfa.final_states)
+        # states = dfa.states
+        # transition_states = ['s{}'.format(i) for i in range(len(states))]
+        # transitions_map = dict(zip(states, transition_states))
+        # for init_state, inputs in dfa.transitions.items():
+        #     for symbol, next_states in inputs.items():
+        #         dfa.transitions[init_state][symbol] = transitions_map[next_states]
+        #
+        # for init_state in list(dfa.transitions.keys()):
+        #     dfa.transitions[transitions_map[init_state]] = dfa.transitions.pop(init_state)
+        #
+        # dfa.states = set(transition_states)
+        #
+        # dfa.final_states = set([transitions_map[i] for i in dfa.final_states])
+        # dfa.initial_state = transitions_map[dfa.initial_state]
+        #
+        # print(dfa.transitions)
+        # print(dfa.states)
+        # print(dfa.final_states)
+        dfa.simplify('s')
         dfa.show_diagram('{}.png'.format(key))
 
         yield key, ans

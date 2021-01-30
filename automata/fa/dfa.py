@@ -329,3 +329,19 @@ class DFA(fa.FA):
         if path:
             graph.write_png(path)
         return graph
+
+    def simplify(self, identifier):
+        states = self.states
+        transition_states = ['{}{}'.format(identifier, i) for i in range(len(states))]
+        transitions_map = dict(zip(states, transition_states))
+
+        for init_state, inputs in self.transitions.items():
+            for symbol, next_states in inputs.items():
+                self.transitions[init_state][symbol] = transitions_map[next_states]
+
+        for init_state in list(self.transitions.keys()):
+            self.transitions[transitions_map[init_state]] = self.transitions.pop(init_state)
+
+        self.states = set(transition_states)
+        self.final_states = set([transitions_map[i] for i in self.final_states])
+        self.initial_state = transitions_map[self.initial_state]
