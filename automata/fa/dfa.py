@@ -3,6 +3,7 @@
 
 import copy
 import itertools
+import uuid
 from collections import deque
 
 import automata.base.exceptions as exceptions
@@ -293,19 +294,18 @@ class DFA(fa.FA):
         graph = Dot(graph_type='digraph', rankdir='LR')
         nodes = {}
         for state in self.states:
+            arguments = {'shape': 'circle', 'style': 'solid'}
+
             if state == self.initial_state:
                 # color start state with green
-                initial_state_node = Node(state, shape="circle", style="filled", fillcolor="green")
-                nodes[state] = initial_state_node
-                graph.add_node(initial_state_node)
-            elif state in self.final_states:
-                final_state = Node(state, shape="doublecircle")
-                nodes[state] = final_state
-                graph.add_node(final_state)
-            else:
-                state_node = Node(state, shape="circle")
-                nodes[state] = state_node
-                graph.add_node(state_node)
+                arguments['style'] = 'filled'
+                arguments['fillcolor'] = 'green'
+            if state in self.final_states:
+                arguments['shape'] = 'doublecircle'
+
+            state_node = Node(state, **arguments)
+            nodes[state] = state_node
+            graph.add_node(state_node)
         # adding edges
         for from_state, lookup in self.transitions.items():
             for to_label, to_state in lookup.items():
@@ -330,9 +330,12 @@ class DFA(fa.FA):
             graph.write_png(path)
         return graph
 
-    def simplify(self, identifier):
+    def simplify(self, identifier=None):
         states = self.states
-        transition_states = ['{}{}'.format(identifier, i) for i in range(len(states))]
+        if identifier is None:
+            transition_states = ['{}'.format(str(uuid.uuid4())) for i in range(len(states))]
+        else:
+            transition_states = ['{}{}'.format(identifier, i) for i in range(len(states))]
         transitions_map = dict(zip(states, transition_states))
 
         for init_state, inputs in self.transitions.items():
