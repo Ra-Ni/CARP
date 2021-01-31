@@ -1,11 +1,10 @@
 import json
 from collections import deque
-from codecs import decode
-from math import ceil
 
 from automata.fa.dfa import DFA
 from automata.fa.nfa import NFA
 from node import pNFA
+
 
 language = {
     '*': 0,
@@ -21,6 +20,7 @@ language = {
 
 escape_codes = {
     '\\s': ' ',
+    '\\*': '*'
 }
 
 
@@ -56,6 +56,7 @@ def shunting(text, reference):
 
         elif token == "\\" and tokens:
             token += tokens.popleft()
+
             output.append(token)
 
         elif token == '(' or token == '[':
@@ -107,6 +108,7 @@ def to_pNFA(result: deque):
             stack.append(pNFA.kleene_star(stack.pop()))
         elif current == ' ':
             second, first = stack.pop(), stack.pop()
+
             stack.append(pNFA.concat(first, second))
         elif current == '|':
             stack.append(pNFA.union(stack.pop(), stack.pop()))
@@ -119,30 +121,33 @@ def to_pNFA(result: deque):
 
     return final
 
-def parse_reserved_words(data: dict) -> dict:
-    result = {}
+def parse_reserved_words(data: dict) -> None:
     for key, value in data.items():
         stack = list(value)
         stack.extend([' '] * (len(value) - 1))
-        result[key] = to_pNFA(deque(stack))
+        data[key] = to_pNFA(deque(stack))
 
-    return result
 
-def parse_language(data: dict, keys: list) -> dict:
-    result = {}
+def parse_language(data: dict, keys: list) -> None:
+
     for key in keys:
         ans = shunting(data[key], data)
-        result[key] = to_pNFA(ans)
 
-    return result
+        data[key] = to_pNFA(ans)
+
 
 def parse_tokens(data: dict, keys: list) -> dict:
-    result = {}
-    for key in keys:
-        ans = shunting(data[key], data)
-        result[key] = to_pNFA(ans)
 
-    return result
+    for key in keys:
+
+        ans = shunting(data[key], data)
+        if key == 'float':
+            print(ans)
+            print('yes')
+
+        data[key] = to_pNFA(ans)
+
+
 
 def unify(data: dict) -> pNFA:
     stack = list(data.values())
@@ -151,21 +156,21 @@ def unify(data: dict) -> pNFA:
     return stack.pop()
 
 def parse(data):
-    target = data['RESERVED']
+    # target = data['RESERVED']
+    # parse_reserved_words(target)
+    #
+    # target.update(data['LANGUAGE'])
+    # parse_language(target, list(data['LANGUAGE'].keys()))
+    target = data['TOKEN']
+    target.update(data['TOKEN'])
+    parse_tokens(target, list(data['TOKEN'].keys()))
 
-    result = parse_reserved_words(target)
-    result['finalreserv'] = unify(result)
-    target = data['LANGUAGE']
-    buffer = parse_language(target, list(target.keys()))
-    result.update(buffer)
-    target = data['TOKEN'].copy()
-    result.update(target)
-    buffer = parse_tokens(result, list(target.keys()))
-    result.update(buffer)
+    buffer = pNFA.unify(target)
+    target['total'] = buffer
 
 
 
-    for key, ans in result.items():
+    for key, ans in target.items():
 
         nfa = NFA(
             states=ans.states,
@@ -176,12 +181,13 @@ def parse(data):
         )
 
         dfa = DFA.from_nfa(nfa)
-        dfa.simplify('q')
-        dfa = dfa.minify()
-        dfa.simplify('s')
-        result[key] = dfa
-
+        dfa.simplify('q', ans.labels)
+        # dfa = dfa.minify()
+        # dfa.simplify('s')
+        target[key] = dfa
+        if key == 'block_comment':
+            print('block comment')
         dfa.show_diagram('img/{}.png'.format(key))
 
 
-    return result
+    return target

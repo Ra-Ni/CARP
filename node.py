@@ -14,6 +14,7 @@ class pNFA:
         self.input_symbols = set() if token == '' else {token}
         self.transitions = {self.initial_state: {token: self.final_states.copy()},
                             final_state: {}}
+        self.labels = {}
 
     def print(self):
         print("Start: {}\nFinal: {}\n".format(self.initial_state, self.final_states))
@@ -59,14 +60,12 @@ class pNFA:
                 buffer = set(buffer)
                 self.transitions[initial_state][symbol] = buffer
 
-
         for key in list(self.transitions.keys()):
             self.transitions[transitions_map[key]] = self.transitions.pop(key)
 
         self.final_states = {transitions_map[i] for i in self.final_states}
         self.initial_state = transitions_map[self.initial_state]
         self.states = set(transition_states)
-
 
     @classmethod
     def concat(cls, x, y):
@@ -126,6 +125,27 @@ class pNFA:
         return new_NFA
 
     @classmethod
+    def unify(cls, tables: dict):
+        new_NFA = cls()
+
+        new_NFA.transitions = {new_NFA.initial_state: {}}
+        new_NFA.final_states = set()
+
+        for label, table in tables.items():
+            new_NFA.transitions.update(table.transitions)
+            new_NFA.final_states.update(table.final_states)
+            input_set = new_NFA.transitions[new_NFA.initial_state].setdefault('', set())
+            input_set.add(table.initial_state)
+            new_NFA.transitions[new_NFA.initial_state][''] = input_set
+            new_NFA.input_symbols.update(table.input_symbols)
+            for final_state in table.final_states:
+                new_NFA.labels[final_state] = label
+
+        new_NFA.states.update(set(list(new_NFA.transitions.keys())))
+
+        return new_NFA
+
+    @classmethod
     def kleene_star(cls, x):
         new_NFA = cls()
         u = x.copy()
@@ -160,7 +180,6 @@ class pNFA:
     def option(cls, x):
         new_NFA = cls()
         u = x.copy()
-
 
         # merge u into the new nfa
         new_NFA.transitions.update(u.transitions)

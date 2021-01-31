@@ -313,7 +313,7 @@ class DFA(fa.FA):
                 # edge = graph.get_edge_list()
                 if edge:
                     label = edge[0].__get_attribute__('label')
-                    label += ', {}'.format(to_label)
+                    label += ', {}'.format(repr(to_label))
                     graph.del_edge(from_state, to_state)
                     graph.add_edge(Edge(nodes[from_state], nodes[to_state], label=label))
 
@@ -323,27 +323,40 @@ class DFA(fa.FA):
                     graph.add_edge(Edge(
                         nodes[from_state],
                         nodes[to_state],
-                        label=to_label
+                        label=repr(to_label)
                     ))
 
         if path:
             graph.write_png(path)
         return graph
 
-    def simplify(self, identifier=None):
+    def simplify(self, identifier=None, reference=None):
         states = self.states
+
         if identifier is None:
             transition_states = ['{}'.format(str(uuid.uuid4())) for i in range(len(states))]
         else:
             transition_states = ['{}{}'.format(identifier, i) for i in range(len(states))]
         transitions_map = dict(zip(states, transition_states))
 
+        if reference:
+            for k, v in transitions_map.items():
+                results = []
+                for key, val in reference.items():
+                    if key in k:
+                        results.append(val)
+
+                if results:
+                    transitions_map[k] = '-'.join(results)
+
         for init_state, inputs in self.transitions.items():
             for symbol, next_states in inputs.items():
                 self.transitions[init_state][symbol] = transitions_map[next_states]
 
         for init_state in list(self.transitions.keys()):
-            self.transitions[transitions_map[init_state]] = self.transitions.pop(init_state)
+            d = self.transitions.setdefault(transitions_map[init_state], {})
+            d.update(self.transitions.pop(init_state))
+            self.transitions[transitions_map[init_state]] = d
 
         self.states = set(transition_states)
         self.final_states = set([transitions_map[i] for i in self.final_states])

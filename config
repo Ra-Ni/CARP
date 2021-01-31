@@ -58,14 +58,14 @@
         "letter": "uppercase|lowercase",
         "digit": "0|nonzero",
         "space": "\\s",
-        "alphanum": "(letter)|(digit)|_",
-        "character": "(alphanum)|(space)",
-        "fraction": ". (((digit)* (nonzero))|0)"
+        "alphanum": "letter|digit|_",
+        "character": "alphanum|space",
+        "fraction": ". ((digit* nonzero)|0)"
     },
     "TOKEN": {
-        "id": "(letter) (alphanum)*",
-        "integer": "((nonzero) (digit)*)|0",
-        "float": "(integer) (fraction) [e [+|-] integer]",
-        "string": "\" (character)* \""
+        "id": "letter alphanum*",
+        "integer": "(nonzero digit*)|0",
+        "float": "integer fraction [e [+|-] integer]",
+        "string": "\" character* \""
     }
 }
