@@ -3,7 +3,7 @@
 
 
 class AutomatonException(Exception):
-    """The base class for all automaton-related errors."""
+    """The lexer class for all automaton-related errors."""
 
     pass
 

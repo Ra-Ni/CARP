@@ -24,7 +24,7 @@ class fa:
         self.initial_state = generate_uid()
         self.transitions = {}
         self.final_states = SortedSet()
-        self.states = SortedSet()
+        self.states = SortedSet([self.initial_state])
 
     def __del__(self):
         del self.initial_state
@@ -41,13 +41,28 @@ class fa:
 
         return tabulate(tabulate_list, tablefmt='grid')
 
-    def __copy__(self):
+    def copy(self):
         other = fa()
         other.label = self.label
-        other.initial_state = self.initial_state
-        other.transitions = self.transitions.copy()
-        other.final_states = self.final_states.copy()
-        other.states = self.states.copy()
+        uuid_map = {self.initial_state: generate_uid()}
+        other.initial_state = uuid_map[self.initial_state]
+
+        for state, symbol, next_state in iter(self):
+            new_state = uuid_map.setdefault(state, generate_uid())
+            new_next_state = uuid_map.setdefault(next_state, generate_uid())
+
+            if next_state in self.final_states:
+                other.transitions.setdefault(new_next_state, {})
+                other.final_states.add(new_next_state)
+
+            other.transitions\
+                .setdefault(new_state, {})\
+                .setdefault(symbol, SortedSet())\
+                .add(new_next_state)
+
+            other.states.add(new_state)
+            other.states.add(new_next_state)
+
         return other
 
     def __iter__(self):
@@ -58,6 +73,7 @@ class fa:
                 else:
                     for next_state in next_states:
                         yield state, symbol, next_state
+
 
     def accepts(self, text: str):
         result = False

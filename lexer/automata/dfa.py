@@ -1,10 +1,6 @@
-import itertools
-from ast import literal_eval
-
 from sortedcontainers import SortedSet
 
-from base.fa import fa, generate_uid
-from base.nfa import nfa
+from .fa import fa, generate_uid
 
 
 class dfa(fa):
@@ -83,8 +79,9 @@ class dfa(fa):
         self.initial_state = uuid_map[self.initial_state]
         self.states = set(list(self.transitions.keys()))
 
+
     @classmethod
-    def from_NFA(cls, nfa: nfa):
+    def from_nfa(cls, nfa):
         dfa = cls()
 
         def _epsilon_closure(*states):
@@ -121,7 +118,8 @@ class dfa(fa):
 
         dfa.initial_state, accept = _epsilon_closure(nfa.initial_state)
         dfa.initial_state = str(dfa.initial_state)
-        dfa.states.add(dfa.initial_state)
+        dfa.states = SortedSet([dfa.initial_state])
+        dfa.final_states = SortedSet()
 
         if accept:
             dfa.final_states.add(dfa.initial_state)

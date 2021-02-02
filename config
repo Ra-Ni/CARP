@@ -27,7 +27,7 @@
         ",": "COMMA",
         ".": "PERIOD",
         ":": "COLON",
-        "::": "IDK WHAT THIS IS"
+        "::": "ASSIGN"
     },
     "RESERVED": {
         "if": "if",

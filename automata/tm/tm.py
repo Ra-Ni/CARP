@@ -8,7 +8,7 @@ from automata.base.automaton import Automaton
 
 
 class TM(Automaton, metaclass=abc.ABCMeta):
-    """An abstract base class for Turing machines."""
+    """An abstract lexer class for Turing machines."""
 
     def _read_input_symbol_subset(self):
         if not (self.input_symbols < self.tape_symbols):

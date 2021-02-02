@@ -9,7 +9,7 @@ from automata.base.automaton import Automaton
 
 
 class PDA(Automaton, metaclass=abc.ABCMeta):
-    """An abstract base class for pushdown automata."""
+    """An abstract lexer class for pushdown automata."""
 
     def _validate_transition_invalid_input_symbols(self, start_state,
                                                    input_symbol):

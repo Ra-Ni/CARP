@@ -7,7 +7,7 @@ import automata.base.exceptions as exceptions
 
 
 class Automaton(metaclass=abc.ABCMeta):
-    """An abstract base class for all automata, including Turing machines."""
+    """An abstract lexer class for all automata, including Turing machines."""
 
     @abc.abstractmethod
     def __init__(self):

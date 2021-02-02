@@ -5,7 +5,7 @@ from automata.base.exceptions import AutomatonException
 
 
 class PDAException(AutomatonException):
-    """The base class for all PDA-related errors."""
+    """The lexer class for all PDA-related errors."""
 
     pass
 

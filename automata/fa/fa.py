@@ -7,6 +7,6 @@ from automata.base.automaton import Automaton
 
 
 class FA(Automaton, metaclass=abc.ABCMeta):
-    """An abstract base class for finite automata."""
+    """An abstract lexer class for finite automata."""
 
     pass

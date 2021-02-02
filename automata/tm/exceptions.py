@@ -5,7 +5,7 @@ from automata.base.exceptions import AutomatonException
 
 
 class TMException(AutomatonException):
-    """The base class for all machine-related errors."""
+    """The lexer class for all machine-related errors."""
 
     pass
 
