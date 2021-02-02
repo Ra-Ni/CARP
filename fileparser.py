@@ -187,7 +187,7 @@ def parse(data):
         target[key] = dfa
         if key == 'block_comment':
             print('block comment')
-        dfa.show_diagram('img/{}.png'.format(key))
+        dfa.show('img/{}.png'.format(key))
 
 
     return target

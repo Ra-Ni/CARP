@@ -1,8 +1,8 @@
 from sortedcontainers import SortedSet
-from base.FA import FA, generate_uid
+from base.fa import fa, generate_uid
 
 
-class fNFA(FA):
+class nfa(fa):
     def __init__(self, symbol: str = None, label: str = None):
         super().__init__(label)
         self.final_states.add(generate_uid() if symbol else self.initial_state)
@@ -30,6 +30,7 @@ class fNFA(FA):
 
     def concat(self, other, overwrite=True):
         self.transitions.update(other.transitions)
+        self.states.update(other.states)
 
         for final_state in self.final_states:
             self.transitions[final_state].setdefault('', SortedSet()).add(other.initial_state)
@@ -44,17 +45,18 @@ class fNFA(FA):
         new_initial_state = generate_uid()
         new_final_state = generate_uid()
 
-        self.transitions[new_initial_state] = {'': SortedSet([new_final_state, self.initial_state])}
+        self.transitions[new_initial_state] = {'': SortedSet([self.initial_state, new_final_state])}
         self.transitions[new_final_state] = {}
 
         for final_state in self.final_states:
-            self.transitions[final_state].setdefault('', SortedSet()) \
-                .union(SortedSet([self.initial_state, new_final_state]))
+            self.transitions[final_state]\
+                .setdefault('', SortedSet()) \
+                .update(SortedSet([self.initial_state, new_final_state]))
 
         self.final_states.clear()
         self.final_states.add(new_final_state)
         self.initial_state = new_initial_state
-
+        self.states.update([new_final_state, new_initial_state])
 
     # def __minimum_dfa(self):
     #     k = 0

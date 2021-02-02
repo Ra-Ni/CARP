@@ -4,8 +4,8 @@ from collections import deque
 from automata.base.exceptions import RejectionException
 from automata.fa.nfa import NFA
 from automata.fa.dfa import DFA
-from base.fDFA import fDFA
-from base.fNFA import fNFA
+from base.dfa import dfa
+from base.nfa import nfa
 from fileparser import reader, parse
 from node import *
 
@@ -13,7 +13,7 @@ from node import *
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
-    second = fNFA()
+    second = nfa()
     second.transitions = {
         '0': {'a':{'1'},'b':{'2'}},
         '1': {'a':{'1'},'b':{'3'}},
@@ -25,7 +25,7 @@ if __name__ == '__main__':
     second.initial_state = '0'
     second.final_states = {'4'}
 
-    third = fNFA()
+    third = nfa()
     third.transitions = {
         'A': {'a': {'B'}, 'b': {'C'}},
         'B': {'a': {'B'}, 'b': {'D'}},
@@ -37,5 +37,8 @@ if __name__ == '__main__':
     third.final_states = {'E'}
     third.states = {'A', 'B', 'C', 'D', 'E'}
 
-    second.union(third)
-    second.show_diagram('img/ex.png')
+    second.kleene()
+    second = dfa.from_NFA(second)
+    second.rehash(True)
+
+    second.show('img/ex.png')

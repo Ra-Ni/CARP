@@ -18,7 +18,7 @@ class RejectStateException(BaseException):
         return self.msg
 
 
-class FA:
+class fa:
     def __init__(self, label: str = None):
         self.label = label
         self.initial_state = generate_uid()
@@ -41,6 +41,24 @@ class FA:
 
         return tabulate(tabulate_list, tablefmt='grid')
 
+    def __copy__(self):
+        other = fa()
+        other.label = self.label
+        other.initial_state = self.initial_state
+        other.transitions = self.transitions.copy()
+        other.final_states = self.final_states.copy()
+        other.states = self.states.copy()
+        return other
+
+    def __iter__(self):
+        for state, transition in self.transitions.items():
+            for symbol, next_states in transition.items():
+                if type(next_states) == str:
+                    yield state, symbol, next_states
+                else:
+                    for next_state in next_states:
+                        yield state, symbol, next_state
+
     def accepts(self, text: str):
         result = False
         try:
@@ -61,17 +79,7 @@ class FA:
         except KeyError:
             raise RejectStateException(last_symbol)
 
-    def __iter__(self):
-        for state, transition in self.transitions.items():
-            for symbol, next_states in transition.items():
-                if type(next_states) == str:
-                    yield state, symbol, next_states
-                else:
-                    for next_state in next_states:
-                        yield state, symbol, next_state
-
-
-    def show_diagram(self, path=None):
+    def show(self, path=None):
         graph = Dot(graph_type='digraph', rankdir='LR')
         nodes = {}
         for state in self.states:

@@ -3,11 +3,11 @@ from ast import literal_eval
 
 from sortedcontainers import SortedSet
 
-from base.FA import FA, generate_uid
-from base.fNFA import fNFA
+from base.fa import fa, generate_uid
+from base.nfa import nfa
 
 
-class fDFA(FA):
+class dfa(fa):
 
     def __init__(self):
         super().__init__()
@@ -84,7 +84,7 @@ class fDFA(FA):
         self.states = set(list(self.transitions.keys()))
 
     @classmethod
-    def from_NFA(cls, nfa: fNFA):
+    def from_NFA(cls, nfa: nfa):
         dfa = cls()
 
         def _epsilon_closure(*states):
@@ -121,6 +121,8 @@ class fDFA(FA):
 
         dfa.initial_state, accept = _epsilon_closure(nfa.initial_state)
         dfa.initial_state = str(dfa.initial_state)
+        dfa.states.add(dfa.initial_state)
+
         if accept:
             dfa.final_states.add(dfa.initial_state)
         stack = [dfa.initial_state]
