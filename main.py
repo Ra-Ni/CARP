@@ -1,47 +1,43 @@
-from lexer import nfa
-from lexer import dfa
+import sys
 
+from AutomataTheory import *
 # Press the green button in the gutter to run the script.
-from lexer.generator import generator
 
 if __name__ == '__main__':
 
-    second = nfa()
-    second.transitions = {
-        '0': {'a':{'1'},'b':{'2'}},
-        '1': {'a':{'1'},'b':{'3'}},
-        '2': {'a':{'1'},'b':{'2'}},
-        '3': {'a':{'1'},'b':{'4'}},
-        '4': {}
-    }
-    second.states = {'0','1', '2', '3', '4'}
-    second.initial_state = '0'
-    second.final_states = {'4'}
+    def main():
+        inp = "(01*1)*1"
+        if len(sys.argv) > 1:
+            inp = sys.argv[1]
+        print("Regular Expression: ", inp)
 
-    third = nfa()
-    third.transitions = {
-        'A': {'a': {'B'}, 'b': {'C'}},
-        'B': {'a': {'B'}, 'b': {'D'}},
-        'C': {'a': {'B'}, 'b': {'C'}},
-        'D': {'a': {'B'}, 'b': {'E'}},
-        'E': {}
-    }
-    third.initial_state = 'A'
-    third.final_states = {'E'}
-    third.states = {'A', 'B', 'C', 'D', 'E'}
+        nfaObj = NFAfromRegex(inp)
+        nfa = nfaObj.getNFA()
 
-    nfa.kleene(second)
-    # second = dfa.from_NFA(second)
-    # second.rehash(True)
+        dfaObj = DFAfromNFA(nfa)
+        dfa = dfaObj.getDFA()
+        minDFA = dfaObj.getMinimisedDFA()
+        print("\nNFA: ")
 
-    second.show('img/ex.png')
-    second = second.copy()
-    # second = dfa.from_NFA(second)
-    # second.rehash(True)
+        nfaObj.displayNFA()
+        print("\nDFA: ")
 
-    second.show('img/ex2.png')
-    print(second)
+        dfaObj.displayDFA()
+        print("\nMinimised DFA: ")
 
-    gen = generator()
-    gen.load('test')
-    gen.exec()
+        dfaObj.displayMinimisedDFA()
+        if isInstalled("dot"):
+            drawGraph(dfa, "dfa")
+            drawGraph(nfa, "nfa")
+            drawGraph(minDFA, "mdfa")
+            print("\nGraphs have been created in the code directory")
+            print(minDFA.getDotFile())
+
+
+    if __name__ == '__main__':
+        t = time.time()
+        try:
+            main()
+        except BaseException as e:
+            print("\nFailure:", e)
+        print("\nExecution time: ", time.time() - t, "seconds")
