@@ -286,25 +286,12 @@ def minimize(x: automata):
         indistinct = list(eval(P.pop()))
         state = str(indistinct)
         uid.update(dict(zip(indistinct, [state] * len(indistinct))))
-
-    new_transitions = {}
-    new_final = SortedSet()
-    for state, symbol, final, is_accept in iter(x):
-        new_transitions\
-            .setdefault(uid[state], {})\
-            .setdefault(symbol, SortedSet())\
-            .add(uid[final])
-        if is_accept:
-            new_final.add(uid[final])
-    x.final = new_final
-    x.transitions = new_transitions
-    x.states = SortedSet(uid.values())
-    x.start = uid[x.start]
+    simplify(x, uid)
 
 
-
-def simplify(x: automata) -> None:
-    uid = dict(zip(x.states, {f'S{c}' for c in range(len(x.states))}))
+def simplify(x: automata, uid: dict = None) -> None:
+    if not uid:
+        uid = dict(zip(x.states, {f'S{c}' for c in range(len(x.states))}))
     new_transitions = {}
     new_finals = SortedSet()
 
