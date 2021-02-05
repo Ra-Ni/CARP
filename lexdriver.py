@@ -1,27 +1,54 @@
-import re
+import os
 from collections import deque
+import sys
+from lex import scanner
 
-from my_automata.regex import scan
+def help(exception: Exception = None):
+    print(
+"""lexdriver.py <file> [config]
+
+    <file>:
+        Source code file ending with the extension .src
+    [config]:
+        Segment of program containing the tokens and regular expressions
+        
+        Must contain variables "reserved" and "tokens", where:
+            type(reserved) -> list(str(phrase))
+            type(tokens) -> list(tuple(str(id), str(regex))\n""")
+
+    if exception:
+        print(exception)
+
+    exit(0)
+
 
 if __name__ == '__main__':
-
-    path = 'examples/lexnegativegrading.src'
-    output_path = re.sub(r'(?!\.)src$', '', path)
-    tokens = deque()
-
+    args = len(sys.argv)
     prev_line = 1
-    for inp in scan(path):
-        tokens.append(inp)
 
-    with open(f'{output_path}outlexerrors', 'w') as errors:
-        with open(f'{output_path}outlextokens', 'w') as output:
-            prev_line = 1
-            while tokens:
-                tok = tokens.popleft()
-                fill_char = ' ' if prev_line == tok.location else '\n'
-                prev_line = tok.location
+    path = sys.argv[1] if args >= 2 else 'examples/lexnegativegrading.src'
+    config = sys.argv[2] if args >= 3 else 'config'
+    lex_errors = ''
+    try:
+        output_path, _ = os.path.splitext(path)
+        s = scanner(config)
+        tokens = deque(list(s.read(path)))
+        lex_errors = f'{output_path}.outlexerrors'
+        lex_tokens = f'{output_path}.outlextokens'
 
-                if tok.lexeme == 'invalidchar':
-                    errors.write(str(tok) + '\n')
+        with open(lex_errors, 'w') as errors:
+            with open(lex_tokens, 'w') as output:
+                while tokens:
+                    tok = tokens.popleft()
+                    fill_char = ' ' if prev_line == tok.location else '\n'
+                    prev_line = tok.location
 
-                output.write(fill_char + str(tok))
+                    if tok.type == 'invalidchar':
+                        errors.write('Lexical error: Invalid character: "{}": line {}.\n'
+                                     .format(tok.lexeme, tok.location))
+
+                    output.write(fill_char + str(tok))
+
+        print(f'Results stored in:\n\t{lex_tokens}\n\t{lex_errors}')
+    except Exception as err:
+        help(err)
