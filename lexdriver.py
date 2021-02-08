@@ -30,9 +30,12 @@ if __name__ == '__main__':
     config = sys.argv[2] if args >= 3 else 'config'
     lex_errors = ''
     try:
+        with open(path, 'r') as fstream:
+            data = fstream.read()
+
         output_path, _ = os.path.splitext(path)
         s = scanner(config)
-        tokens = deque(list(s.read(path)))
+        tokens = deque(list(s.read(data)))
         lex_errors = f'{output_path}.outlexerrors'
         lex_tokens = f'{output_path}.outlextokens'
 

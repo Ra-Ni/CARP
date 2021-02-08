@@ -17,10 +17,7 @@ class scanner:
             config += "\nself.tokens = '|'.join('(?P<%s>%s)' % pair for pair in tokens)\nself.reserved = reserved"
             exec(config)
 
-    def read(self, path: str):
-        with open(path, 'r') as fstream:
-            data = fstream.read()
-
+    def read(self, data: str):
         line_num = 1
 
         for tok in re.finditer(self.tokens, data):
