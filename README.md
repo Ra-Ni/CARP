@@ -60,25 +60,28 @@ of the input file stream have been stored in a buffer. If a match is found, the 
 its execution until the next call.
 
 Additionally, the scanner requires a config file to generate the logic for matching lexemes to tokens.
-The file is assumed to be correct in structure and logic. It is then executed using a python exec() call.
+The file is assumed to be correct in structure and logic. It is then executed using a python exec() call. We note that the config
+file is a fragment of a program, whose purpose is to allow customizations to the current specifications.
 
+The follow figure shows the relation between each object:
+![](img/design.png)
 
 ## Tool Usage
 
 ### Automata (PyPi)
 
-The Automata library contains datastructures and logic for converting NFAs to DFAs using Thompson's Construction Algorithm and
+The [Automata](https://github.com/caleb531/automata) library contains datastructures and logic for converting NFAs to DFAs using Thompson's Construction Algorithm and
 Rabin-Scott's Powerset Algorithm. A newer version of automata adds the ability to render the finite automata using PyDot.
 
 ### re
 
-Python's well-developed re library provides the capabilities to construct and customize tokens from regular expressions
+Python's well-developed [re](https://docs.python.org/3/library/re.html) library provides the capabilities to construct and customize tokens from regular expressions
 and output the results for each character that is read. The lex library implemented in this project leverages the features present
 in the re library to implement a simple parser and tokenizer.
 
 ### Shunting Algorithm
 
-The shunting algorithm, although not necessarily a tool, was very useful throughout the project as it was used to convert
+The [shunting](https://en.wikipedia.org/wiki/Shunting-yard_algorithm) algorithm, although not necessarily a tool, was very useful throughout the project as it was used to convert
 regular expressions into their posix notation during the construction of the finite automata.
 
 
