@@ -199,7 +199,7 @@ def parse(data):
         )
 
         dfa = DFA.from_nfa(nfa)
-
+        dfa.simplify('q')
         dfa = dfa.minify()
         dfa.simplify('s')
         result[key] = dfa
