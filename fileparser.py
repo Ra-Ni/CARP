@@ -1,4 +1,5 @@
 import json
+import re
 from collections import deque
 from codecs import decode
 from math import ceil
@@ -21,6 +22,7 @@ language = {
 
 escape_codes = {
     '\\s': ' ',
+    '\\*': '*'
 }
 
 
@@ -150,19 +152,40 @@ def unify(data: dict) -> pNFA:
         stack.append(pNFA.union(stack.pop(), stack.pop()))
     return stack.pop()
 
+def parse_operators(data: dict) -> dict:
+    result = {}
+    for key in data.keys():
+        stack = []
+
+        if '\\' in data[key]:
+            stack = [data[key]]
+        else:
+            stack.extend(data[key])
+            stack.extend([' '] * (len(data[key]) - 1))
+
+
+
+
+        result[key] = to_pNFA(deque(stack))
+    return result
+
 def parse(data):
     target = data['RESERVED']
 
     result = parse_reserved_words(target)
-    result['finalreserv'] = unify(result)
+    target = data['OPERATORS']
+    buffer = parse_operators(target)
+    result.update(buffer)
+
     target = data['LANGUAGE']
     buffer = parse_language(target, list(target.keys()))
     result.update(buffer)
     target = data['TOKEN'].copy()
     result.update(target)
     buffer = parse_tokens(result, list(target.keys()))
-    result.update(buffer)
 
+    result.update(buffer)
+    result['total'] = unify(result)
 
 
     for key, ans in result.items():
@@ -176,7 +199,7 @@ def parse(data):
         )
 
         dfa = DFA.from_nfa(nfa)
-        dfa.simplify('q')
+
         dfa = dfa.minify()
         dfa.simplify('s')
         result[key] = dfa
