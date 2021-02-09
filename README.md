@@ -42,15 +42,17 @@ The regular expressions for operators and reserved words have been omitted in th
 ## Finite State Machine
 
 A lexical analyzer utilizing finite state machines would convert the previously mentioned regular expressions into their posix
-notation and produce, in part, the following results:
+notation and produce the corresponding minimum DFA in the automata library. The final finite state machine is a unification of all
+sub finite state machines. The figures below show the DFA representations of the 'while' reserved word, the float, and the
+entire lexical specification respectively. Other images may be viewed in the 'img' folder.
 
-![test](img/while.png "Minimum DFA representation of a reserved word 'while'" )
+![](img/while.png "Minimum DFA representation of a reserved word 'while'" )
 
 
-![](img/float.png "Test")
+![](img/float.png "Minimum DFA representation of a float")
 
 
-![](img/total.png)
+![](img/total.png "Minimum DFA representation of every token in the lexical specification")
 ## Design Details
 
 The lex library contains the scanner and token structures. The former reads the input character by character once the contents
