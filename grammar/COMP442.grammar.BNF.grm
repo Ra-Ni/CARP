@@ -1,0 +1,50 @@
+<START>        ::= <prog>
+<prog>         ::= {{<classDecl>}} {{<funcDef>}} 'main' <funcBody>
+<classDecl>    ::= 'class' 'id' [['inherits' 'id' {{',' 'id'}}]] '{' {{<visibility> <memberDecl>}} '}' ';'
+<visibility>   ::= 'public' | 'private' | EPSILON
+<memberDecl>   ::= <funcDecl> | <varDecl>  
+<funcDecl>     ::= 'func' 'id' '(' <fParams> ')' ':' <type> ';' 
+                |  'func' 'id' '(' <fParams> ')' ':' 'void' ';' 
+<funcHead>     ::= 'func' [['id' 'sr']] 'id' '(' <fParams> ')' ':' <type> 
+                |  'func' [['id' 'sr']] 'id' '(' <fParams> ')' ':' 'void'
+<funcDef>      ::= <funcHead> <funcBody> 
+<funcBody>     ::= [[ 'var' '{' {{<varDecl>}} '}' ]] {{<statement>}}
+<varDecl>      ::= <type> 'id' {{<arraySize>}} ';'
+<statement>    ::= <assignStat> ';'
+                |  'if'     '(' <relExpr> ')' 'then' <statBlock> 'else' <statBlock> ';'
+                |  'while'  '(' <relExpr> ')' <statBlock> ';'
+                |  'read'   '(' <variable> ')' ';'
+                |  'write'  '(' <expr> ')' ';'
+                |  'return' '(' <expr> ')' ';'
+                |  'break' ';'
+                |  'continue' '; '
+                |  <functionCall> ';'
+<assignStat>   ::= <variable> <assignOp> <expr>
+<statBlock>    ::= '{' {{<statement>}} '}' | <statement> | EPSILON  
+<expr>         ::= <arithExpr> | <relExpr>
+<relExpr>      ::= <arithExpr> <relOp> <arithExpr>
+<arithExpr>    ::= <arithExpr> <addOp> <term> | <term> 
+<sign>         ::= '+' | '-'
+<term>         ::= <term> <multOp> <factor> | <factor>
+<factor>       ::= <variable>
+                |  <functionCall>
+                |  'intLit' | 'floatLit' | 'stringLit' 
+                |  '(' <arithExpr> ')'
+                |  'not' <factor>
+                |  <sign> <factor>
+                |  'qm' '[' <expr> ':' <expr> ':' <expr> ']' 
+<variable>     ::= {{<idnest>}} 'id' {{<indice>}}
+<functionCall> ::= {{<idnest>}} 'id' '(' <aParams> ')'
+<idnest>       ::= 'id' {{<indice>}} '.'
+                |  'id' '(' <aParams> ')' '.'
+<indice>       ::= '[' <arithExpr> ']'
+<arraySize>    ::= '[' 'intNum' ']' | '[' ']'
+<type>         ::= 'integer' | 'float' | 'string' | 'id'
+<fParams>      ::= <type> 'id' {{<arraySize>}} {{<fParamsTail>}} | EPSILON  
+<aParams>      ::= <expr> {{<aParamsTail>}} | EPSILON 
+<fParamsTail>  ::= ',' <type> 'id' {{<arraySize>}}
+<aParamsTail>  ::= ',' <expr>
+<assignOp>     ::= '='
+<relOp>        ::= 'eq' | 'neq' | 'lt' | 'gt' | 'leq' | 'geq' 
+<addOp>        ::= '+' | '-'
+<multOp>       ::= '*' | '/'
