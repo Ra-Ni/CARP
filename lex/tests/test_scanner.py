@@ -5,11 +5,12 @@ from lex import scanner
 
 DEFAULT_CONFIG = '../../config'
 
-class TestStringMethods(unittest.TestCase):
+
+class test_scanner(unittest.TestCase):
     s = scanner(DEFAULT_CONFIG)
 
     def _apply(self, type: str, test: str, expected: Union[int, list]):
-        output = [o.lexeme for o in TestStringMethods.s.read(test) if o.type == type]
+        output = [o.lexeme for o in test_scanner.s.read(test) if o.type == type]
         if isinstance(expected, int):
             output = len(output)
         self.assertEqual(expected, output)
@@ -113,7 +114,6 @@ class TestStringMethods(unittest.TestCase):
                     >
 
                     """, 2)
-
 
     def test_plus(self):
         self._apply('plus',
