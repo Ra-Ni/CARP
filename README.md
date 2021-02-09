@@ -1,8 +1,51 @@
-https://smlweb.cpsc.ucalgary.ca/start.html
+# LexMe
+
+LexMe is a lexical analyzer that accepts any regular expressions in a config file and produces tokens by leveraging python's
+re library. LexMe is simple and intuitive. While not as performant as other lexical analyzers (especially those that utilize a finite state machine table),
+it does allow one to easily transform lexemes into tokens.
+
+## Prerequisites
+
+- Python 3.7+
+
+## Configuration File
+
+1. Run the editor for the config file included:
+```shell
+vim config
+```
+
+2. Add or remove token-regex pairs in tokens:
+```shell
+tokens = [('token1': 'regex'),
+          ('token2': '\.html')]
+```
+
+3. Add or remove reserved keywords in reserved:
+```shell
+reserved = {'hello',
+            'world', 
+            'if', 
+            'else'}
+```
+## Command Line Arguments
+
+```shell
+lexdriver.py <file> [config]
+
+    <file>:
+        Source code file ending with the extension .src
+    [config]:
+        Segment of program containing the tokens and regular expressions
+        
+        Must contain variables "reserved" and "tokens", where:
+            type(reserved) -> list(str(phrase))
+            type(tokens) -> list(tuple(str(id), str(regex))
+```
 
 ## Regular Expressions
 
-The following regular expressions supported by the lex library:
+The following regular expressions supported by default in LexMe:
 ```regexp
 digit:
  [0-9]
@@ -66,7 +109,7 @@ file is a fragment of a program, whose purpose is to allow customizations to the
 The follow figure shows the relation between each object:
 ![](img/design.png)
 
-## Tool Usage
+## Tools
 
 ### Automata (PyPi)
 
@@ -85,3 +128,6 @@ The [shunting](https://en.wikipedia.org/wiki/Shunting-yard_algorithm) algorithm,
 regular expressions into their posix notation during the construction of the finite automata.
 
 
+## Contributors
+
+[Rani Rafid](github.com/ra-ni) - 26975852
