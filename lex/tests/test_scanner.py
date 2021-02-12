@@ -91,7 +91,7 @@ class test_scanner(unittest.TestCase):
                     >   =
                     >
                     >=
-                    """, 3)
+                    """, 4)
 
     def test_leq(self):
         self._apply('leq',
