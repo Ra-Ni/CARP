@@ -5,11 +5,10 @@ from lex import token
 class scanner:
 
     def __init__(self, config_file: str = None):
+        self.tokens = None
+        self.reserved = None
         if config_file:
-            self.tokens = None
-            self.reserved = None
-            if config_file:
-                self.load(config_file)
+            self.load(config_file)
 
     def load(self, config_file: str):
         with open(config_file, 'r') as fstream:
