@@ -1,3 +1,7 @@
 # Project exclude paths
 /venv/
 .idea/
+examples
+grammar
+img
+.gitignore
