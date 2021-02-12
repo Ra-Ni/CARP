@@ -1,71 +1,69 @@
-{
-    "OPERATORS": {
-        "eq": "==",
-        "noteq": "<>",
-        "lt": "<",
-        "gt": ">",
-        "leq": "<=",
-        "geq": ">=",
-        "plus": "+",
-        "minus": "-",
-        "mult": "\\*",
-        "div": "/",
-        "assign": "=",
-        "or": "\\|",
-        "and": "&",
-        "not": "!",
-        "qmark": "\\?"
-    },
-    "PUNCTUATIONS": {
-        "openpar": "(",
-        "closepar": ")",
-        "opencubr": "{",
-        "closecubr": "}",
-        "opensqr": "[",
-        "closesqr]": "]",
-        "semi": ";",
-        "comma": ",",
-        "dot": ".",
-        "colon": ":",
-        "coloncolon": "::"
-    },
-    "RESERVED": {
-        "if": "if",
-        "then": "then",
-        "else": "else",
-        "integer": "integer",
-        "float": "float",
-        "string": "string",
-        "void": "void",
-        "public": "public",
-        "private": "private",
-        "func": "func",
-        "var": "var",
-        "class": "class",
-        "while": "while",
-        "read": "read",
-        "write": "write",
-        "return": "return",
-        "main": "main",
-        "inherits": "inherits",
-        "break": "break",
-        "continue": "continue"
-    },
-    "LANGUAGE" : {
-        "lowercase": "a|b|c|d|e|f|g|h|i|j|k|l|m|n|o|p|q|r|s|t|u|v|w|x|y|z",
-        "uppercase": "A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z",
-        "nonzero": "1|2|3|4|5|6|7|8|9",
-        "letter": "uppercase|lowercase",
-        "digit": "0|nonzero",
-        "space": "\\s",
-        "alphanum": "(letter)|(digit)|_",
-        "character": "(alphanum)|(space)",
-        "fraction": ". (((digit)* (nonzero))|0)"
-    },
-    "TOKEN": {
-        "id": "(letter) (alphanum)*",
-        "integer": "((nonzero) (digit)*)|0",
-        "float": "(integer) (fraction) [e [+|-] (integer)]",
-        "string": "\" (character)* \""
-    }
-}
+nonzero = r'[1-9]'
+letter = r'[a-zA-Z]'
+digit = fr'(?:0|{nonzero})'
+alphanum = rf'(?:{letter}|{digit}|_)'
+character = rf'(?:{alphanum}| )'
+fractnum = rf'[.](?:0|{digit}*{nonzero})'
+intnum = rf'(?:{nonzero}{digit}*|0)'
+floatnum = rf'{intnum}{fractnum}(?:e[+\-]?{intnum})?'
+
+reserved = {
+            'if',
+            'then',
+            'else',
+            'integer',
+            'float',
+            'string',
+            'void',
+            'public',
+            'private',
+            'func',
+            'var',
+            'class',
+            'while',
+            'read',
+            'write',
+            'return',
+            'main',
+            'inherits',
+            'break',
+            'continue'
+            }
+
+tokens = [
+    ('id', rf'{letter}{alphanum}*'),
+    ('floatnum', floatnum),
+    ('intnum', intnum),
+    ('stringlit', rf'"{character}*"'),
+    ('inline_comment', r'//.*'),
+    ('block_comment', r'/\*(?:.|\s)*?\*/'),
+    ('lf', r'\n'),
+    ('skip', r'[ \t]+'),
+    ('coloncolon', '::'),
+    ('noteq', '<>'),
+    ('eq', '=='),
+    ('geq', '>='),
+    ('leq', '<='),
+    ('opencubr', r'\{'),
+    ('closecubr', r'\}'),
+    ('colon', r':'),
+    ('assign', '='),
+    ('minus', r'\-'),
+    ('plus', r'\+'),
+    ('or', r'\|'),
+    ('openpar', r'\)'),
+    ('closepar', r'\('),
+    ('opensqbr', r'\['),
+    ('div', '/'),
+    ('mult', r'\*'),
+    ('qmark', r'\?'),
+    ('and', '&'),
+    ('closesqbr', '\]'),
+    ('comma', ','),
+    ('lt', '<'),
+    ('gt', '>'),
+    ('semi', ';'),
+    ('dot', '\.'),
+    ('not', '!'),
+    ('invalidchar', rf'.')
+]
