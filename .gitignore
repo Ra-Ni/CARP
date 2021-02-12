@@ -1,0 +1,5 @@
+.idea
+examples
+grammar
+doc/assets
+src/lex/__pycache__
