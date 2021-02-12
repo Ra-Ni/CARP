@@ -1,6 +1,6 @@
 import re
 
-from lex import token
+from lex.token import token
 
 
 class scanner:

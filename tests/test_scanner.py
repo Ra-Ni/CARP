@@ -3,7 +3,7 @@ from typing import Union
 
 from lex import scanner
 
-DEFAULT_CONFIG = '../../config'
+DEFAULT_CONFIG = '../examples/config'
 
 
 class test_scanner(unittest.TestCase):

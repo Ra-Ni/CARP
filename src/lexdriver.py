@@ -1,11 +1,12 @@
 import os
 from collections import deque
 import sys
-from lex import scanner
+from lex import *
+
 
 def help(exception: Exception = None):
     print(
-"""lexdriver.py <file> [config]
+        """lexdriver.py <file> [config]
 
     <file>:
         Source code file ending with the extension .src
@@ -26,8 +27,8 @@ if __name__ == '__main__':
     args = len(sys.argv)
     prev_line = 1
 
-    path = sys.argv[1] if args >= 2 else 'examples/lexnegativegrading.src'
-    config = sys.argv[2] if args >= 3 else 'config'
+    path = sys.argv[1] if args >= 2 else '../examples/lexnegativegrading.src'
+    config = sys.argv[2] if args >= 3 else '../examples/config'
     lex_errors = ''
     try:
         with open(path, 'r') as fstream:
