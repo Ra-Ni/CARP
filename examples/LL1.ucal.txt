@@ -53,11 +53,11 @@ Statement -> FuncVarStartCaveat semi
  	| continue semi .
 AssignStat ->  AssignOp Expr.
 AssignOp -> assign .
-Expr -> ArithExpr .
+Expr -> ArithExpr ExprTail.
 ArithExpr -> Term ArithExprTail .
-ArithExprTail -> AddOp ArithExpr 
-	| RelOp ArithExpr 
-	| .
+ArithExprTail -> AddOp Term ArithExprTail
+    | .
+ExprTail -> RelOp ArithExpr | .
 StatBlock -> opencubr StatementTail closecubr
 	| Statement
 	| .
