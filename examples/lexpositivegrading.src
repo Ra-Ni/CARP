@@ -22,7 +22,7 @@
 120.34e10	
 12345.6789e-123	
 
-abc 	
+_abc
 abc1
 a1bc	
 abc_1abc	
@@ -32,8 +32,7 @@ abc1_abc
 
 /* this is a 
 multiple line
-block comment 
-*/
+block comment
 
 // this is an inline comment
 
