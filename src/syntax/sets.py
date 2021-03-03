@@ -3,7 +3,8 @@ from pathlib import Path
 import urllib.parse
 import requests
 import pandas as pd
-from lex import scanner, token
+import lex as lx
+from lex import token
 import asyncio
 
 class logger:
@@ -30,7 +31,7 @@ class analyzer:
         self.non_terminals = None
         self.first = None
         self.follow = None
-        self.lexical_analyzer = None
+        self.lexer = None
         self.recovery_mode = None
 
         self.tokens = None
@@ -39,8 +40,8 @@ class analyzer:
         self.errors = False
 
     def parse(self, target: str):
-        self.lexical_analyzer.open(target)
-        self.tokens = iter(self.lexical_analyzer)
+        self.lexer.open(target)
+        self.tokens = iter(self.lexer)
         self.lookahead = next(self.tokens)
         self.stack.clear()
         self.stack.append('START')
@@ -142,16 +143,18 @@ def load(**kwargs):
             'dir': '../_config/',
             'll1': 'll1.bak.xz',
             'vitals': 'vitals.bak.xz',
-            'config': 'syntax',
-            'scanner': scanner.load(suppress_comments=1)}
-
+            'syntax_config': 'syntax',
+            'lexer': None}
     opts.update(kwargs)
 
-    for file in ['ll1', 'vitals', 'config']:
+    if not opts['lexer']:
+        opts['lexer'] = lx.load(lex_suppress_comments=1, **opts)
+
+    for file in ['ll1', 'vitals', 'syntax_config']:
         opts[file] = Path(opts['dir'] + opts[file])
 
-    if not opts['config'].exists() or opts['config'].is_dir():
-        raise FileNotFoundError('Configuration file "%s" does not exist or is a directory' % opts['config'])
+    if not opts['syntax_config'].exists() or opts['syntax_config'].is_dir():
+        raise FileNotFoundError('Configuration file "%s" does not exist or is a directory' % opts['syntax_config'])
 
     for backup in ['ll1', 'vitals']:
         f = opts[backup]
@@ -162,14 +165,14 @@ def load(**kwargs):
             is_online = True
 
     if is_online:
-        with open(opts['config'], 'r') as fstream:
+        with open(opts['syntax_config'], 'r') as fstream:
             grammar = urllib.parse.quote_plus(fstream.read())
 
     ll1 = loop.create_task(_get_ll1(grammar, opts['ll1'], is_online))
     vitals = loop.create_task(_get_vitals(grammar, opts['vitals'], is_online))
 
     obj = analyzer()
-    obj.lexical_analyzer = opts['scanner']
+    obj.lexer = opts['lexer']
     obj.recovery_mode = opts['recovery_mode']
 
     loop.run_until_complete(asyncio.wait([ll1, vitals]))

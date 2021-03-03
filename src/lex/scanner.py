@@ -1,5 +1,5 @@
 import os
-import pathlib
+from pathlib import Path
 import re
 
 from lex.token import token
@@ -7,12 +7,11 @@ from lex.token import token
 
 class scanner:
 
-    def __init__(self, **kwargs):
+    def __init__(self):
         self.tokens = None
         self.reserved = None
         self.data = None
-        self._opts = {}
-        self._opts.update(kwargs)
+        self.opts = {}
 
     def open(self, file: str):
         with open(file, 'r') as fstream:
@@ -37,7 +36,7 @@ class scanner:
             elif kind == 'id' and value in self.reserved:
                 kind = str(value)
 
-            elif (kind == 'inline_comment' or kind == 'block_comment') and self._opts['suppress_comments']:
+            elif (kind == 'inline_comment' or kind == 'block_comment') and self.opts['suppress_comments']:
                 line_num += value.count('\n')
                 continue
 
@@ -46,21 +45,28 @@ class scanner:
             if kind == 'inline_comment' or kind == 'block_comment':
                 line_num += value.count('\n')
 
-    @classmethod
-    def load(cls, file: str = None, **kwargs):
-        config = pathlib.Path('../_config/lex')
 
-        if config.is_dir():
-            os.remove(config)
+def load(**kwargs):
+    opts = {'dir': '../_config/',
+            'lex_config': 'lex',
+            'lex_suppress_comments': 0}
+    opts.update(kwargs)
 
-        with open(config, 'r') as fstream:
-            code = fstream.read()
+    opts['lex_config'] = Path(opts['dir'] + opts['lex_config'])
 
-        reader = cls(**kwargs)
-        code += "\nreader.tokens = '|'.join('(?P<%s>%s)' % pair for pair in tokens)\nreader.reserved = reserved"
-        exec(code)
+    if opts['lex_config'].is_dir():
+        os.remove(opts['lex_config'])
 
-        if file:
-            reader.open(file)
+    with open(opts['lex_config'], 'r') as fstream:
+        injection = fstream.read()
 
-        return reader
+    injection += "\nreader.tokens = '|'.join('(?P<%s>%s)' % pair for pair in tokens)\nreader.reserved = reserved"
+    reader = scanner()
+    exec(injection)
+
+    if 'lex_data' in opts:
+        reader.open(opts['lex_data'])
+
+    reader.opts['suppress_comments'] = opts['lex_suppress_comments']
+
+    return reader
