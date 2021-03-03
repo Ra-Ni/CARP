@@ -1,5 +1,4 @@
 import os
-import re
 from pathlib import Path
 import urllib.parse
 import requests
@@ -25,22 +24,23 @@ class logger:
 
 
 class analyzer:
-    def __init__(self, ll1: pd.DataFrame, vitals: pd.DataFrame):
-        self.ll1 = ll1
-        self.terminals = self.ll1.columns
-        self.non_terminals = self.ll1.index
-        self.first = vitals['first set']
-        self.follow = vitals['follow set']
-        self.tokenizer = scanner.load(suppress_comments=1)
-        self.stack = []
-        self.errors = False
+    def __init__(self):
+        self.ll1 = None
+        self.terminals = None
+        self.non_terminals = None
+        self.first = None
+        self.follow = None
+        self.lexical_analyzer = None
+        self.recovery_mode = None
+
         self.tokens = None
         self.lookahead = None
-        self.safe_mode = panic
+        self.stack = []
+        self.errors = False
 
     def parse(self, target: str):
-        self.tokenizer.open(target)
-        self.tokens = iter(self.tokenizer)
+        self.lexical_analyzer.open(target)
+        self.tokens = iter(self.lexical_analyzer)
         self.lookahead = next(self.tokens)
         self.stack.clear()
         self.stack.append('START')
@@ -57,7 +57,7 @@ class analyzer:
                     self.lookahead = next(self.tokens, None)
 
                 else:
-                    self.safe_mode(self)
+                    self.recovery_mode(self)
 
             else:
                 non_terminal = self.ll1.at[x, self.lookahead.type]
@@ -70,7 +70,7 @@ class analyzer:
                         self.stack.extend(non_terminal)
 
                 else:
-                    self.safe_mode(self)
+                    self.recovery_mode(self)
 
         log.store()
 
@@ -78,63 +78,107 @@ class analyzer:
             return False
         return True
 
-    @classmethod
-    def load(cls):
-        backup_ll1 = Path('../_config/ll1.bak.xz')
-        backup_vitals = Path('../_config/vitals.bak.xz')
-        config = Path('../_config/syntax')
-        backups = [backup_ll1, backup_vitals]
 
-        if not config.exists() or config.is_dir():
-            raise FileNotFoundError(f'Configuration file "{config}" does not exist or is a directory.')
+def _query(path, grammar, **kwargs):
+    uri = 'https://smlweb.cpsc.ucalgary.ca/'
+    opts = [key + '=' + value for key, value in kwargs.items()]
+    opts = '&'.join(opts)
+    response = requests.get(uri + path + '?grammar=' + grammar + opts)
 
-        for backup in backups:
-            if backup.is_dir() or backup.exists() and backup.stat().st_mtime < config.stat().st_mtime:
-                os.remove(backup)
+    if not response.ok:
+        raise ConnectionError("Connection to UCalgary's grammar tool is currently unavailable")
 
-        if all(map(os.path.exists, backups)):
-            return cls(*list(map(pd.read_pickle, backups)))
+    return response.text
 
-        with open(config, 'r') as fstream:
+
+def _get_ll1(grammar, backup: str, online: bool = False):
+    if not online:
+        return pd.read_pickle(backup)
+
+    response_html = _query('ll1-table.php', grammar, substs='')
+    ll1 = pd.read_html(response_html)[1]
+
+    ll1.rename(columns=dict(zip(ll1.columns[1:].to_list(), ll1.xs(0, 0)[1:].to_list())),
+               index=dict(zip(ll1.index[1:].to_list(), ll1.xs(0, 1)[1:].to_list())),
+               inplace=True)
+
+    ll1.drop([0], 0, inplace=True)
+    ll1.drop([0], 1, inplace=True)
+
+    for index, series in ll1.iterrows():
+        new_series = series.where(pd.notnull(series), None)
+        new_series = new_series.replace([r'.*\s*→\s*', '&epsilon'], ['', 'ε'], regex=True)
+        ll1.loc[index] = new_series.str.split()
+
+    ll1.to_pickle(backup, compression='xz')
+    return ll1
+
+
+def _get_vitals(grammar, backup: str, online: bool = False):
+    if not online:
+        return pd.read_pickle(backup)
+
+    response_html = _query('vital-stats.php', grammar, substs='')
+    vitals = pd.read_html(response_html)[2]
+
+    vitals.rename(index=dict(zip(vitals.index.to_list(), vitals.xs('nonterminal', 1).to_list())), inplace=True)
+
+    vitals.drop(['nonterminal'], 1, inplace=True)
+
+    for dst, src, value in [(vitals['first set'], vitals['nullable'], ' ε'),
+                            (vitals['follow set'], vitals['endable'], ' $')]:
+        src.replace(['yes', 'no'], [value, ''], inplace=True)
+        dst.mask(dst == '∅', None, inplace=True)
+        dst += src
+        dst.where(pd.isnull(dst), dst.str.split(), inplace=True)
+
+    vitals.to_pickle(backup, compression='xz')
+    return vitals
+
+
+def load(**kwargs):
+    is_online = False
+    grammar = None
+    opts = {'recovery_mode': panic,
+            'dir': '../_config/',
+            'll1': 'll1.bak.xz',
+            'vitals': 'vitals.bak.xz',
+            'config': 'syntax',
+            'scanner': scanner.load(suppress_comments=1)}
+
+    opts.update(kwargs)
+
+    for file in ['ll1', 'vitals', 'config']:
+        opts[file] = Path(opts['dir'] + opts[file])
+
+    if not opts['config'].exists() or opts['config'].is_dir():
+        raise FileNotFoundError('Configuration file "%s" does not exist or is a directory' % opts['config'])
+
+    for backup in ['ll1', 'vitals']:
+        f = opts[backup]
+        if f.is_dir() or f.exists() and f.stat().st_mtime < f.stat().st_mtime:
+            os.remove(backup)
+
+        if not f.exists():
+            is_online = True
+
+    if is_online:
+        with open(opts['config'], 'r') as fstream:
             grammar = urllib.parse.quote_plus(fstream.read())
 
-        uri = 'https://smlweb.cpsc.ucalgary.ca/'
-        response_ll1 = requests.get(uri + 'll1-table.php?grammar=' + grammar + '&substs=')
-        response_vitals = requests.get(uri + 'vital-stats.php?grammar=' + grammar)
+    ll1 = _get_ll1(grammar, opts['ll1'], is_online)
+    vitals = _get_vitals(grammar, opts['vitals'], is_online)
 
-        if not (response_ll1.ok and response_vitals.ok):
-            raise ConnectionError("Connection to UCalgary's grammar tool is currently unavailable.")
+    obj = analyzer()
+    obj.ll1 = ll1
+    obj.terminals = ll1.columns
+    obj.non_terminals = ll1.index
+    obj.first = vitals['first set']
+    obj.follow = vitals['follow set']
+    obj.lexical_analyzer = opts['scanner']
+    obj.recovery_mode = opts['recovery_mode']
 
-        ll1 = pd.read_html(response_ll1.text)[1]
-        vitals = pd.read_html(response_vitals.text)[2]
-
-        ll1.rename(columns=dict(zip(ll1.columns[1:].to_list(), ll1.xs(0, 0)[1:].to_list())),
-                   index=dict(zip(ll1.index[1:].to_list(), ll1.xs(0, 1)[1:].to_list())),
-                   inplace=True)
-
-        vitals.rename(index=dict(zip(vitals.index.to_list(), vitals.xs('nonterminal', 1).to_list())),
-                      inplace=True)
-
-        ll1.drop([0], 0, inplace=True)
-        ll1.drop([0], 1, inplace=True)
-        vitals.drop(['nonterminal'], 1, inplace=True)
-
-        for index, series in ll1.iterrows():
-            new_series = series.where(pd.notnull(series), None)
-            new_series = new_series.replace([r'.*\s*→\s*', '&epsilon'], ['', 'ε'], regex=True)
-            ll1.loc[index] = new_series.str.split()
-
-        for dst, src, value in [(vitals['first set'], vitals['nullable'], ' ε'),
-                                (vitals['follow set'], vitals['endable'], ' $')]:
-            src.replace(['yes', 'no'], [value, ''], inplace=True)
-            dst.mask(dst == '∅', None, inplace=True)
-            dst += src
-            dst.where(pd.isnull(dst), dst.str.split(), inplace=True)
-
-        ll1.to_pickle(backup_ll1, compression='xz')
-        vitals.to_pickle(backup_vitals, compression='xz')
-
-        return cls(ll1, vitals)
+    return obj
 
 
 def panic(parser: analyzer):
@@ -151,11 +195,10 @@ def panic(parser: analyzer):
 
     print("[%s] SyntaxError: invalid syntax '%s' ∉ %s" % (lookahead.location, lookahead.type, set(series)))
 
-    print(lookahead.type in parser.ll1.loc[top].dropna().index)
     if lookahead and lookahead in follow:
         parser.stack.pop()
     else:
-        #lookahead and not (lookahead.type in first or 'ε' in first and lookahead.type in follow)
+        # lookahead and not (lookahead.type in first or 'ε' in first and lookahead.type in follow)
         while lookahead and lookahead.type not in series:
             lookahead = parser.lookahead = next(parser.tokens, None)
 
@@ -163,7 +206,7 @@ def panic(parser: analyzer):
 
 
 if __name__ == '__main__':
-    analysis = analyzer.load()
+    analysis = load()
 
     analysis.parse('../../examples/bubblesort.src')
     analysis.parse('../../examples/polynomial.src')
