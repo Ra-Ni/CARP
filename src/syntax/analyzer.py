@@ -3,6 +3,7 @@ from pathlib import Path
 import urllib.parse
 
 import lex as lx
+from syntax.recovery import panic
 from syntax.ucalgary import get_ll1, get_vitals
 
 
@@ -123,29 +124,6 @@ def load(**kwargs):
 
     return obj
 
-
-def panic(parser: analyzer):
-    top = parser.stack[-1]
-    lookahead = parser.lookahead
-
-    if top in parser.terminals:
-        print("[{}] SyntaxError: invalid syntax expectation '{}'".format(lookahead.location, top))
-        parser.stack.pop()
-        return
-
-    follow = parser.follow.loc[top] or []
-    series = parser.ll1.loc[top].dropna().index
-
-    print("[%s] SyntaxError: invalid syntax '%s' ∉ %s" % (lookahead.location, lookahead.type, set(series)))
-
-    if lookahead and lookahead in follow:
-        parser.stack.pop()
-    else:
-        # lookahead and not (lookahead.type in first or 'ε' in first and lookahead.type in follow)
-        while lookahead and lookahead.type not in series:
-            lookahead = parser.lookahead = next(parser.tokens, None)
-
-    parser.errors = True
 
 
 if __name__ == '__main__':
