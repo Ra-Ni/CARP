@@ -47,7 +47,7 @@ class scanner:
 
 
 def load(**kwargs):
-    opts = {'dir': '../_config/',
+    opts = {'dir': './_config/',
             'lex_config': 'lex',
             'lex_suppress_comments': 0}
     opts.update(kwargs)

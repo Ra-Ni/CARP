@@ -1,7 +1,7 @@
 import os
 from collections import deque
 import sys
-from lex import *
+import lex as lx
 
 
 def help(exception: Exception = None):
@@ -28,15 +28,15 @@ if __name__ == '__main__':
     prev_line = 1
 
     path = sys.argv[1] if args >= 2 else '../examples/lexnegativegrading.src'
-    config = sys.argv[2] if args >= 3 else '../examples/config'
+    config = sys.argv[2] if args >= 3 else './_config/'
     lex_errors = ''
     try:
         with open(path, 'r') as fstream:
             data = fstream.read()
 
         output_path, _ = os.path.splitext(path)
-        s = scanner(config)
-        tokens = deque(list(s.open(data)))
+        s = lx.load(lex_data=path)
+        tokens = deque(list(iter(s)))
         lex_errors = f'{output_path}.outlexerrors'
         lex_tokens = f'{output_path}.outlextokens'
 
