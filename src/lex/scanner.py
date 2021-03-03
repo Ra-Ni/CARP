@@ -1,3 +1,5 @@
+import os
+import pathlib
 import re
 
 from lex.token import token
@@ -5,27 +7,23 @@ from lex.token import token
 
 class scanner:
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.tokens = None
         self.reserved = None
-        self.text = None
+        self.data = None
         self._opts = {}
-
-    def __inject__(self, code: str):
-        exec(code)
+        self._opts.update(kwargs)
 
     def open(self, file: str):
         with open(file, 'r') as fstream:
-            text = fstream.read()
-        self.text = text
+            data = fstream.read()
 
-    def options(self, **kwargs):
-        self._opts.update(kwargs)
+        self.data = data
 
     def __iter__(self):
         line_num = 1
 
-        for tok in re.finditer(self.tokens, self.text):
+        for tok in re.finditer(self.tokens, self.data):
             kind = tok.lastgroup
             value = tok.group()
 
@@ -39,7 +37,7 @@ class scanner:
             elif kind == 'id' and value in self.reserved:
                 kind = str(value)
 
-            elif kind == 'inline_comment' or kind == 'block_comment' and self._opts['suppress_comments']:
+            elif (kind == 'inline_comment' or kind == 'block_comment') and self._opts['suppress_comments']:
                 line_num += value.count('\n')
                 continue
 
@@ -49,12 +47,19 @@ class scanner:
                 line_num += value.count('\n')
 
     @classmethod
-    def load(cls, config: str, file: str = None):
-        reader = cls()
+    def load(cls, file: str = None, **kwargs):
+        config = pathlib.Path('../_config/lex')
+
+        if config.is_dir():
+            os.remove(config)
+
         with open(config, 'r') as fstream:
             code = fstream.read()
-            code += "\nself.tokens = '|'.join('(?P<%s>%s)' % pair for pair in tokens)\nself.reserved = reserved"
-            reader.__inject__(code)
+
+        reader = cls(**kwargs)
+        code += "\nreader.tokens = '|'.join('(?P<%s>%s)' % pair for pair in tokens)\nreader.reserved = reserved"
+        exec(code)
+
         if file:
             reader.open(file)
 
