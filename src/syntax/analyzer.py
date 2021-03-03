@@ -4,7 +4,7 @@ import urllib.parse
 
 import lex as lx
 from syntax.recovery import panic
-from syntax.ucalgary import get_ll1, get_vitals
+import syntax.ucalgary as ucal
 
 
 class logger:
@@ -110,8 +110,7 @@ def load(**kwargs):
         with open(opts['syntax_config'], 'r') as fstream:
             grammar = urllib.parse.quote_plus(fstream.read())
 
-    ll1 = get_ll1(grammar, opts['ll1'], is_online)
-    vitals = get_vitals(grammar, opts['vitals'], is_online)
+    ll1, vitals = ucal.get(grammar, opts['ll1'], opts['vitals'], is_online)
 
     obj = analyzer()
     obj.ll1 = ll1
