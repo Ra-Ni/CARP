@@ -1,11 +1,10 @@
 import os
 from pathlib import Path
 import urllib.parse
-import requests
-import pandas as pd
+
 import lex as lx
-from lex import token
-import asyncio
+from syntax.ucalgary import get_ll1, get_vitals
+
 
 class logger:
     def __init__(self):
@@ -13,7 +12,7 @@ class logger:
         self.restricted = ['id', 'intnum', 'floatnum', 'stringlit']
         self.line_num = 1
 
-    def add(self, item: token):
+    def add(self, item: lx.token) -> None:
         text = item.lexeme if len(item.lexeme) == 1 and item.type not in self.restricted else item.type
         self.derivation.append(text)
 
@@ -39,7 +38,7 @@ class analyzer:
         self.stack = []
         self.errors = False
 
-    def parse(self, target: str):
+    def parse(self, target: str) -> bool:
         self.lexer.open(target)
         self.tokens = iter(self.lexer)
         self.lookahead = next(self.tokens)
@@ -78,67 +77,9 @@ class analyzer:
         return True
 
 
-def _query(path, grammar, **kwargs):
-    uri = 'https://smlweb.cpsc.ucalgary.ca/'
-    opts = [key + '=' + value for key, value in kwargs.items()]
-    opts = '&' + '&'.join(opts)
-    response = requests.get(uri + path + '?grammar=' + grammar + opts)
-
-    if not response.ok:
-        raise ConnectionError("Connection to UCalgary's grammar tool is currently unavailable")
-
-    return response.text
-
-
-def _get_ll1(grammar, backup: str, online: bool = False):
-    if not online:
-        return pd.read_pickle(backup)
-
-    response_html = _query('ll1-table.php', grammar, substs='')
-    ll1 = pd.read_html(response_html)[1]
-
-    ll1.rename(columns=dict(zip(ll1.columns[1:].to_list(), ll1.xs(0, 0)[1:].to_list())),
-               index=dict(zip(ll1.index[1:].to_list(), ll1.xs(0, 1)[1:].to_list())),
-               inplace=True)
-
-    ll1.drop([0], 0, inplace=True)
-    ll1.drop([0], 1, inplace=True)
-
-    for index, series in ll1.iterrows():
-        new_series = series.where(pd.notnull(series), None)
-        new_series = new_series.replace([r'.*\s*→\s*', '&epsilon'], ['', 'ε'], regex=True)
-        ll1.loc[index] = new_series.str.split()
-
-    ll1.to_pickle(backup, compression='xz')
-    return ll1
-
-
-def _get_vitals(grammar, backup: str, online: bool = False):
-    if not online:
-        return pd.read_pickle(backup)
-
-    response_html = _query('vital-stats.php', grammar, substs='')
-    vitals = pd.read_html(response_html)[2]
-
-    vitals.rename(index=dict(zip(vitals.index.to_list(), vitals.xs('nonterminal', 1).to_list())), inplace=True)
-
-    vitals.drop(['nonterminal'], 1, inplace=True)
-
-    for dst, src, value in [(vitals['first set'], vitals['nullable'], ' ε'),
-                            (vitals['follow set'], vitals['endable'], ' $')]:
-        src.replace(['yes', 'no'], [value, ''], inplace=True)
-        dst.mask(dst == '∅', None, inplace=True)
-        dst += src
-        dst.where(pd.isnull(dst), dst.str.split(), inplace=True)
-
-    vitals.to_pickle(backup, compression='xz')
-    return vitals
-
-
 def load(**kwargs):
     is_online = False
     grammar = None
-    loop = asyncio.get_event_loop()
     opts = {'recovery_mode': panic,
             'dir': '../_config/',
             'll1': 'll1.bak.xz',
@@ -168,8 +109,8 @@ def load(**kwargs):
         with open(opts['syntax_config'], 'r') as fstream:
             grammar = urllib.parse.quote_plus(fstream.read())
 
-    ll1 = _get_ll1(grammar, opts['ll1'], is_online)
-    vitals = _get_vitals(grammar, opts['vitals'], is_online)
+    ll1 = get_ll1(grammar, opts['ll1'], is_online)
+    vitals = get_vitals(grammar, opts['vitals'], is_online)
 
     obj = analyzer()
     obj.ll1 = ll1
