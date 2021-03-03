@@ -36,7 +36,7 @@ if __name__ == '__main__':
 
         output_path, _ = os.path.splitext(path)
         s = scanner(config)
-        tokens = deque(list(s.read(data)))
+        tokens = deque(list(s.open(data)))
         lex_errors = f'{output_path}.outlexerrors'
         lex_tokens = f'{output_path}.outlextokens'
 
