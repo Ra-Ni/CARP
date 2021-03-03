@@ -36,13 +36,13 @@ class scanner:
             elif kind == 'id' and value in self.reserved:
                 kind = str(value)
 
-            elif (kind == 'inline_comment' or kind == 'block_comment') and self.opts['suppress_comments']:
+            elif 'comment' in kind and self.opts['suppress_comments']:
                 line_num += value.count('\n')
                 continue
 
             yield token(str(kind), str(value), line_num)
 
-            if kind == 'inline_comment' or kind == 'block_comment':
+            if 'comment' in kind:
                 line_num += value.count('\n')
 
 
