@@ -4,7 +4,7 @@ import urllib.parse
 import requests
 import pandas as pd
 from lex import scanner, token
-
+import asyncio
 
 class logger:
     def __init__(self):
@@ -48,10 +48,9 @@ class analyzer:
         log = logger()
 
         while self.stack and self.lookahead:
-
-            x = self.stack[-1]
-            if x in self.terminals:
-                if x == self.lookahead.type:
+            top = self.stack[-1]
+            if top in self.terminals:
+                if top == self.lookahead.type:
                     self.stack.pop()
                     log.add(self.lookahead)
                     self.lookahead = next(self.tokens, None)
@@ -60,7 +59,7 @@ class analyzer:
                     self.recovery_mode(self)
 
             else:
-                non_terminal = self.ll1.at[x, self.lookahead.type]
+                non_terminal = self.ll1.at[top, self.lookahead.type]
 
                 if non_terminal:
                     non_terminal = non_terminal[::-1]
@@ -73,7 +72,6 @@ class analyzer:
                     self.recovery_mode(self)
 
         log.store()
-
         if self.lookahead or self.stack or self.errors:
             return False
         return True
@@ -91,7 +89,7 @@ def _query(path, grammar, **kwargs):
     return response.text
 
 
-def _get_ll1(grammar, backup: str, online: bool = False):
+async def _get_ll1(grammar, backup: str, online: bool = False):
     if not online:
         return pd.read_pickle(backup)
 
@@ -114,7 +112,7 @@ def _get_ll1(grammar, backup: str, online: bool = False):
     return ll1
 
 
-def _get_vitals(grammar, backup: str, online: bool = False):
+async def _get_vitals(grammar, backup: str, online: bool = False):
     if not online:
         return pd.read_pickle(backup)
 
@@ -139,6 +137,7 @@ def _get_vitals(grammar, backup: str, online: bool = False):
 def load(**kwargs):
     is_online = False
     grammar = None
+    loop = asyncio.get_event_loop()
     opts = {'recovery_mode': panic,
             'dir': '../_config/',
             'll1': 'll1.bak.xz',
@@ -166,17 +165,23 @@ def load(**kwargs):
         with open(opts['config'], 'r') as fstream:
             grammar = urllib.parse.quote_plus(fstream.read())
 
-    ll1 = _get_ll1(grammar, opts['ll1'], is_online)
-    vitals = _get_vitals(grammar, opts['vitals'], is_online)
+    ll1 = loop.create_task(_get_ll1(grammar, opts['ll1'], is_online))
+    vitals = loop.create_task(_get_vitals(grammar, opts['vitals'], is_online))
 
     obj = analyzer()
+    obj.lexical_analyzer = opts['scanner']
+    obj.recovery_mode = opts['recovery_mode']
+
+    loop.run_until_complete(asyncio.wait([ll1, vitals]))
+    ll1 = ll1.result()
+    vitals = vitals.result()
+    loop.close()
+
     obj.ll1 = ll1
     obj.terminals = ll1.columns
     obj.non_terminals = ll1.index
     obj.first = vitals['first set']
     obj.follow = vitals['follow set']
-    obj.lexical_analyzer = opts['scanner']
-    obj.recovery_mode = opts['recovery_mode']
 
     return obj
 
