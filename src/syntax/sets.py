@@ -1,9 +1,27 @@
 import os
+import re
 from pathlib import Path
 import urllib.parse
 import requests
 import pandas as pd
-from lex import scanner
+from lex import scanner, token
+
+
+class logger:
+    def __init__(self):
+        self.derivation = []
+        self.restricted = ['id', 'intnum', 'floatnum', 'stringlit' ]
+        self.line_num = 1
+
+    def add(self, item: token):
+        text = item.lexeme if len(item.lexeme) == 1 and item.type not in self.restricted  else item.type
+        self.derivation.append(text)
+
+    def store(self):
+        text = ' '.join(self.derivation)
+
+        with open('../_config/out', 'w') as fstream:
+            fstream.write(text)
 
 
 class analyzer:
@@ -17,14 +35,14 @@ class analyzer:
         self.tokenizer.open(target)
         tokens = iter(self.tokenizer)
         a = next(tokens)
-
+        log = logger()
         while stack and a:
 
             x = stack[-1]
             if x in self.frame.columns:
-
                 if x == a.type:
                     stack.pop()
+                    log.add(a)
                     a = next(tokens, None)
 
                 else:
@@ -44,7 +62,7 @@ class analyzer:
                 else:
                     errors = True
                     break
-
+        log.store()
         if a or stack or errors:
             return False
         return True
