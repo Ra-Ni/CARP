@@ -7,23 +7,6 @@ from syntax.recovery import panic
 import syntax.ucalgary as ucal
 
 
-class logger:
-    def __init__(self):
-        self.derivation = []
-        self.restricted = ['id', 'intnum', 'floatnum', 'stringlit']
-        self.line_num = 1
-
-    def add(self, item: lx.token) -> None:
-        text = item.lexeme if len(item.lexeme) == 1 and item.type not in self.restricted else item.type
-        self.derivation.append(text)
-
-    def store(self):
-        text = ' '.join(self.derivation)
-
-        with open('../_config/out', 'w') as fstream:
-            fstream.write(text)
-
-
 class analyzer:
     def __init__(self):
         self.ll1 = None
@@ -36,26 +19,33 @@ class analyzer:
 
         self.tokens = None
         self.lookahead = None
-        self.stack = []
-        self.errors = False
+        self.stack = None
+        self.errors = None
+        self.derivations = None
 
-    def parse(self, target: str) -> bool:
-        self.lexer.open(target)
+    def parse(self, src: str) -> bool:
+        self.lexer.open(src)
         self.tokens = iter(self.lexer)
         self.lookahead = next(self.tokens)
-        self.stack.clear()
-        self.stack.append('START')
-        self.errors = False
-        log = logger()
+        self.stack = ['START']
+        self.errors = []
+        self.derivations = []
 
+        current_line = 1
         while self.stack and self.lookahead:
             top = self.stack[-1]
+
             if top in self.terminals:
                 if top == self.lookahead.type:
-                    self.stack.pop()
-                    log.add(self.lookahead)
-                    self.lookahead = next(self.tokens, None)
+                    if current_line == self.lookahead.location:
+                        prefix = ' '
+                    else:
+                        prefix = '\n' * (self.lookahead.location - current_line)
+                        current_line = self.lookahead.location
+                    self.derivations.append(prefix + self.lookahead.type)
 
+                    self.stack.pop()
+                    self.lookahead = next(self.tokens, None)
                 else:
                     self.recovery_mode(self)
 
@@ -72,7 +62,9 @@ class analyzer:
                 else:
                     self.recovery_mode(self)
 
-        log.store()
+        self.derivations = ''.join(self.derivations)
+        self.errors = '\n'.join(self.errors)
+
         if self.lookahead or self.stack or self.errors:
             return False
         return True
@@ -82,7 +74,7 @@ def load(**kwargs):
     is_online = False
     grammar = None
     opts = {'recovery_mode': panic,
-            'dir': '../_config/',
+            'dir': '_config/',
             'll1': 'll1.bak.xz',
             'vitals': 'vitals.bak.xz',
             'syntax_config': 'syntax',
@@ -122,11 +114,3 @@ def load(**kwargs):
     obj.recovery_mode = opts['recovery_mode']
 
     return obj
-
-
-
-if __name__ == '__main__':
-    analysis = load()
-
-    analysis.parse('../../examples/bubblesort.src')
-    analysis.parse('../../examples/polynomial.src')

@@ -22,12 +22,13 @@ def get_ll1(grammar, backup: str):
     response_html = query('ll1-table.php', grammar=grammar, substs='')
     ll1 = pd.read_html(response_html)[1]
 
-    ll1.rename(columns=dict(zip(ll1.columns[1:].to_list(), ll1.xs(0, 0)[1:].to_list())),
+    ll1.rename(columns=dict(zip(ll1.columns[2:].to_list(), ll1.xs(0, 0)[2:].to_list())),
                index=dict(zip(ll1.index[1:].to_list(), ll1.xs(0, 1)[1:].to_list())),
                inplace=True)
 
     ll1.drop([0], 0, inplace=True)
     ll1.drop([0], 1, inplace=True)
+    ll1.drop([1], 1, inplace=True)
 
     for index, series in ll1.iterrows():
         new_series = series.where(pd.notnull(series), None)
