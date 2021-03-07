@@ -75,8 +75,6 @@ class ast:
             del self.children[uid]
             del self.labels[uid]
             del self.parent[uid]
-            if uid in self.stack:
-                self.stack.remove(uid)
             self._epsilon_remove(uid_parent)
 
     def epsilon_remove(self):
@@ -147,7 +145,8 @@ class analyzer:
                     # else:
                     #     self.ast.add_all(parent, ['epsilon'])
                     else:
-                        self.ast.stack.pop()
+                        self.ast.epsilon_remove()
+
 
 
 
