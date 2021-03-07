@@ -38,7 +38,7 @@ class ast:
         uid = self._sequence
         self._sequence += 1
         self.labels[uid] = node_label
-        self.parent[uid] = parent
+        self.parent[uid] = parent if self.labels[parent] != node_label else self.parent[parent]
         self.children[uid] = []
         self.children[parent].append(uid)
         return uid
@@ -130,26 +130,17 @@ class analyzer:
             else:
                 non_terminal = self.ll1.at[top, self.lookahead.type]
 
-
                 if non_terminal:
                     non_terminal = non_terminal[::-1]
                     self.stack.pop()
-
 
                     if ['ε'] != non_terminal:
                         self.stack.extend(non_terminal)
                         self.ast.add_all(non_terminal)
 
-                    # else:
-                    #     self.ast.epsilon_remove(self.ast.stack[-1])
-                    # else:
-                    #     self.ast.add_all(parent, ['epsilon'])
                     else:
                         self.ast.epsilon_remove()
-
-
-
-
+                        
                 else:
                     self.recovery_mode(self)
 
