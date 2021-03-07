@@ -17,6 +17,8 @@ if __name__ == '__main__':
     # derivations.write_text(analysis.derivations, encoding='UTF-16')
     print([str(x.type) for x in analysis.derivations])
     print(analysis.logs)
+    analysis.ast.render('test.dot')
+    analysis.ast.minimize()
     analysis.ast.render('test2.png')
 
     errors.write_text(analysis.errors, encoding='UTF-16')
