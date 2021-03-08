@@ -5,7 +5,7 @@ import syntax as syn
 
 if __name__ == '__main__':
     analysis = syn.load()
-    target = '../examples/polynomial.src'
+    target = '../examples/bubblesort.src'
     path = Path(target)
     filename = str(path.parent) + '/' + str(path.stem) + '.out'
     errors = Path(filename + 'syntaxerrors')
@@ -17,9 +17,7 @@ if __name__ == '__main__':
     # derivations.write_text(analysis.derivations, encoding='UTF-16')
     print([str(x.type) for x in analysis.derivations])
     print(analysis.logs)
-    analysis.ast.render('test.dot')
-    analysis.ast.minimize()
-    analysis.ast.render('test2.png')
+
 
     errors.write_text(analysis.errors, encoding='UTF-16')
     ast.write_text(analysis.ll1.to_string(), encoding='UTF-16')

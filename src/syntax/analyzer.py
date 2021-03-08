@@ -22,7 +22,6 @@ class Analyzer:
         self.stack = None
         self.errors = None
         self.derivations = None
-        self.ast = None
         self.logs = None
 
     def parse(self, src: str) -> bool:
@@ -30,35 +29,33 @@ class Analyzer:
         self.tokens = iter(self.lexer)
         self.lookahead = next(self.tokens)
         self.logs = []
-        self.ast = AST()
+        self.ast = []
         self.errors = []
         self.derivations = []
+        self.stack = ['START']
 
-        while not self.ast.empty() and self.lookahead:
-            top = self.ast.peek()
+        while self.stack and self.lookahead:
+            top = self.stack[-1]
 
             self.logs.append(top)
-            if top.label in self.terminals:
-                if top.label == self.lookahead.type:
+            if top in self.terminals:
+                if top == self.lookahead.type:
                     self.derivations.append(self.lookahead)
-                    self.ast.pop()
-                    top.token = self.lookahead
+                    self.stack.pop()
                     self.lookahead = next(self.tokens, None)
                 else:
                     self.recovery_mode(self)
 
             else:
-                non_terminal = self.ll1.at[top.label, self.lookahead.type]
+                non_terminal = self.ll1.at[top, self.lookahead.type]
 
                 if non_terminal:
+                    self.stack.pop()
                     non_terminal = non_terminal[::-1]
 
                     if ['ε'] != non_terminal:
-                        self.ast.add_all(non_terminal)
+                        self.stack.extend(non_terminal)
 
-                    else:
-                        self.ast.epsilon_remove()
-                        
                 else:
                     self.recovery_mode(self)
 
