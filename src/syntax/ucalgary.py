@@ -1,7 +1,6 @@
 import pandas as pd
 import requests
 
-
 def query(path, **kwargs):
     if 'grammar' not in kwargs:
         raise ValueError("Grammar not defined")
@@ -35,6 +34,7 @@ def get_ll1(grammar, backup: str):
         new_series = new_series.replace([r'.*\s*→\s*', '&epsilon'], ['', 'ε'], regex=True)
         ll1.loc[index] = new_series.str.split()
     print(ll1.to_string())
+
     ll1.to_pickle(backup, compression='xz')
     return ll1
 
@@ -54,7 +54,6 @@ def get_vitals(grammar, backup: str):
         dst += src
         dst.where(pd.isnull(dst), dst.str.split(), inplace=True)
 
-    print(vitals.to_string())
     vitals.to_pickle(backup, compression='xz')
     return vitals
 

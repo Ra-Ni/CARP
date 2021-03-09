@@ -2,9 +2,9 @@ import uuid
 
 
 class Node:
-    def __init__(self, label: str = None, parent = None):
+    def __init__(self, label: str = None, parent = None, token = None):
         self.label = label
-        self.token = None
+        self.token = token
         self.children = []
         self.parent = parent
         self._uid = uuid.uuid4()

@@ -6,6 +6,7 @@ from syntax.ast import AST
 from syntax.recovery import panic
 import syntax.ucalgary as ucal
 
+def deny(node: Node):
 
 class Analyzer:
     def __init__(self):
@@ -32,12 +33,14 @@ class Analyzer:
         self.ast = []
         self.errors = []
         self.derivations = []
-        self.stack = ['START']
+        self.stack = ['Start']
 
         while self.stack and self.lookahead:
             top = self.stack[-1]
 
             self.logs.append(top)
+
+
             if top in self.terminals:
                 if top == self.lookahead.type:
                     self.derivations.append(self.lookahead)
@@ -54,6 +57,7 @@ class Analyzer:
                     non_terminal = non_terminal[::-1]
 
                     if ['ε'] != non_terminal:
+
                         self.stack.extend(non_terminal)
 
                 else:

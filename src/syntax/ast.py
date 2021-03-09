@@ -13,8 +13,6 @@ class AST:
         self.stack = [self.root]
         self.nodes = OrderedDict({self.root.uid: self.root})
 
-        self.blacklist = {'rpar', 'lpar', 'lcurbr', 'rcurbr', 'lsqbr', 'rsqbr', 'semi', 'then', 'else'}
-
     def render(self, src):
         graph = pydot.Dot('AST', graph_type='digraph')
         nodes = {}
