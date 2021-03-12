@@ -1,5 +1,9 @@
+import re
+from pathlib import Path
+import urllib.parse
 import pandas as pd
 import requests
+
 
 def query(path, **kwargs):
     if 'grammar' not in kwargs:
@@ -21,19 +25,17 @@ def get_ll1(grammar, backup: str):
     response_html = query('ll1-table.php', grammar=grammar, substs='')
     ll1 = pd.read_html(response_html)[1]
 
-    ll1.rename(columns=dict(zip(ll1.columns[2:].to_list(), ll1.xs(0, 0)[2:].to_list())),
+    ll1.rename(columns=dict(zip(ll1.columns[1:].to_list(), ll1.xs(0, 0)[1:].to_list())),
                index=dict(zip(ll1.index[1:].to_list(), ll1.xs(0, 1)[1:].to_list())),
                inplace=True)
 
     ll1.drop([0], 0, inplace=True)
     ll1.drop([0], 1, inplace=True)
-    ll1.drop([1], 1, inplace=True)
 
     for index, series in ll1.iterrows():
         new_series = series.where(pd.notnull(series), None)
         new_series = new_series.replace([r'.*\s*→\s*', '&epsilon'], ['', 'ε'], regex=True)
         ll1.loc[index] = new_series.str.split()
-    print(ll1.to_string())
 
     ll1.to_pickle(backup, compression='xz')
     return ll1
@@ -50,8 +52,10 @@ def get_vitals(grammar, backup: str):
     for dst, src, value in [(vitals['first set'], vitals['nullable'], ' ε'),
                             (vitals['follow set'], vitals['endable'], ' $')]:
         src.replace(['yes', 'no'], [value, ''], inplace=True)
-        dst.mask(dst == '∅', None, inplace=True)
+
+        dst.mask(dst == '∅', '', inplace=True)
         dst += src
+        dst.mask(dst == '', None, inplace=True)
         dst.where(pd.isnull(dst), dst.str.split(), inplace=True)
 
     vitals.to_pickle(backup, compression='xz')
@@ -63,3 +67,36 @@ def get(grammar, ll1_backup: str, vitals_backup: str, online: bool = False):
         return pd.read_pickle(ll1_backup), pd.read_pickle(vitals_backup)
 
     return get_ll1(grammar, ll1_backup), get_vitals(grammar, vitals_backup)
+
+
+def get_symantec(table: pd.DataFrame):
+    duds = {'lcurbr', 'rcurbr',
+            'lpar', 'rpar',
+            'lsqbr', 'rsqbr',
+            'sr',
+            'colon',
+            'dot',
+            'semi',
+            'qm',
+            'inherits',
+            'comma',
+            'class',
+            'main',
+            'then',
+            'else'
+            }
+
+    regex = r'|'.join(d for d in duds)
+    def function(x):
+        y = x.str.join(' ')
+        y = y.str.replace(regex, ' ', regex=True)
+        y = y.str.strip()
+        y = y.replace(r'\s+', r' ', regex=True)
+        return y
+
+    symantec = table.apply(function)
+
+    def merge_recursion(x):
+        y = x.str.replace(r'\s+' + x.name + '$', '', regex=True)
+        return y
+    symantec = symantec.apply(merge_recursion, axis=1)

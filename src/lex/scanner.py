@@ -23,8 +23,8 @@ class scanner:
         line_num = 1
 
         for tok in re.finditer(self.tokens, self.data):
-            kind = tok.lastgroup
-            value = tok.group()
+            kind = str(tok.lastgroup)
+            value = str(tok.group())
 
             if kind == 'skip':
                 continue
@@ -34,13 +34,13 @@ class scanner:
                 continue
 
             elif kind == 'id' and value in self.reserved:
-                kind = str(value)
+                kind = value
 
             elif 'comment' in kind and self.opts['suppress_comments']:
                 line_num += value.count('\n')
                 continue
 
-            yield token(str(kind), str(value), line_num)
+            yield token(kind, value, line_num)
 
             if 'comment' in kind:
                 line_num += value.count('\n')

@@ -1,8 +1,10 @@
 from collections import OrderedDict
+from typing import Union
 
 import pydot
 
-from syntax.node import Node
+from lex import token
+from syntax.node import Node, Parser
 
 
 class AST:
@@ -101,3 +103,70 @@ class AST:
             parent.children[index] = child
             child.parent = parent
             del self.nodes[uid]
+
+def difference(first: str, second: str):
+    return sum(0 if i[0] == i[1] else 1 for i in zip(first, second)) + abs(len(first) - len(second))
+
+
+class ASTBuilder:
+    def __init__(self, attributes: Parser):
+        self.attributes = attributes
+        self.root = Node('Start')
+        self.stack = [self.root]
+        self.nodes = OrderedDict({self.root.uid: self.root})
+
+    def pop(self):
+        if not self._stack:
+            raise IndexError('Empty Stack')
+
+        return self._stack.pop().label
+
+    def peek(self):
+        if not self._stack:
+            raise IndexError('Empty Stack')
+
+        return self._stack[-1].label
+
+    def push(self, root: str, *children: str):
+
+        buffer = []
+        if self._stack and difference(self._stack[-1], )
+        for child in children:
+            if isinstance(tok, token):
+
+    @classmethod
+    def load(cls, grammar: Parser):
+        duds = {
+            'lcurbr', 'rcurbr',
+            'lpar', 'rpar',
+            'lsqbr', 'rsqbr',
+            'sr',
+            'colon',
+            'dot',
+            'semi',
+            'qm',
+            'inherits',
+            'comma',
+            'class',
+            'main',
+            'then',
+            'else'
+        }
+
+        regex = r'|'.join(d for d in duds)
+
+        def remove_duds(x):
+            y = x.str.join(' ')
+            y = y.str.replace(regex, ' ', regex=True)
+            y = y.str.strip()
+            y = y.replace(r'\s+', r' ', regex=True)
+            return y
+
+        def merge_recursion(x):
+            y = x.str.replace(r'\s+' + x.name + '$', '', regex=True)
+            return y
+
+        attribute_grammar = grammar._table.apply(remove_duds)
+        attribute_grammar = attribute_grammar.apply(merge_recursion, axis=1)
+
+        return cls(attribute_grammar)

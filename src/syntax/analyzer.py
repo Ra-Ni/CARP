@@ -2,11 +2,11 @@ import os
 from pathlib import Path
 import urllib.parse
 import lex as lx
-from syntax.ast import AST
+from syntax.actions import Node
+
 from syntax.recovery import panic
 import syntax.ucalgary as ucal
 
-def deny(node: Node):
 
 class Analyzer:
     def __init__(self):

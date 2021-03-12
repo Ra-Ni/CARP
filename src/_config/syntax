@@ -1,163 +1,158 @@
-Start -> Prog  . 
+/*
+    <push> -> push
+*/
 
-Prog -> ClassList FuncDefList main FuncBody . 
+Start -> Prog .
 
-ClassList -> ClassDecl ClassList 
+Prog -> ClassList <push> FuncDefList <push> main FuncBody <push> .
+
+ClassList -> ClassDecl <push> ClassList
+	| <push>.
+ClassDecl -> class id <push> InheritList <push> lcurbr MembList <push> rcurbr semi .
+
+InheritList -> inherits id <push> InheritList2
 	| .
-ClassDecl -> class Sys(deny) id InheritList lcurbr Sys(deny) MembList rcurbr Sys(deny) semi Sys(deny) .
+InheritList2 -> comma id <push> InheritList2
+	| .
 
-InheritList -> inherits Sys(deny) id InheritList2  
-	| . 
-InheritList2 -> comma Sys(deny) id InheritList2  
-	| . 
-
-MemberDecl -> FuncDecl 
-	| VarDecl . 
-MembList -> Visibility Sys(deny) MemberDecl MembList 
-	| . 
-
-
-AParams -> Expr AParams2 
-	| . 
-AParams2 -> comma Sys(deny) Expr AParams2  
-	| . 
-
-
-ArithExpr -> Term ArithExpr2  . 
-ArithExpr2 -> AddOp Term Sys(ternary) ArithExpr2 
-	| . 
-
-
-Expr -> ArithExpr Expr2  . 
-Expr2 -> RelOp ArithExpr Sys(ternary)
-	| . 
-
-
-Term -> Factor Term2  . 
-Term2 -> MultOp Factor Sys(ternary) Term2
+MemberDecl -> FuncDecl <push>
+	| VarDecl <push> .
+MembList -> Visibility MemberDecl MembList
 	| .
 
 
-FuncOrVarList -> id FuncOrVarList2 . 
-FuncOrVarList2 -> IndiceList Sys(Var) FuncOrVarList3
-	| lpar Sys(deny) AParams rpar Sys(deny) Sys(FCall) FuncOrVarList3 . 
-FuncOrVarList3 -> dot Sys(deny) id FuncOrVarList2 
-	| . 
+AParams -> Expr AParams2
+	| .
+AParams2 -> comma Expr AParams2
+	| .
 
 
-Factor -> FuncOrVarList 
-	| intnum 
-	| floatnum 
-	| stringlit 
-	| lpar Sys(deny) Expr rpar Sys(deny)
-	| not Factor Sys(binary)
-	| Sign Factor Sys(binary)
-	| qm Sys(deny) lsqbr Sys(deny) Expr colon Sys(deny) Expr colon Sys(deny) Expr rsqbr Sys(deny) . 
+ArithExpr -> Term ArithExpr2 .
+ArithExpr2 -> AddOp Term ArithExpr2
+	| .
 
 
-DimList -> lsqbr Sys(deny) Intnum rsqbr Sys(deny) DimList
-	| . 
+Expr -> ArithExpr Expr2 .
+Expr2 -> RelOp ArithExpr
+	| .
 
 
-VarDecl -> Type id DimList semi Sys(deny)  . 
+Term -> Factor Term2 .
+Term2 -> MultOp Factor Term2
+	| .
+
+
+FuncOrVarList -> id FuncOrVarList2 .
+FuncOrVarList2 -> IndiceList FuncOrVarList3
+	| lpar AParams rpar FuncOrVarList3 .
+FuncOrVarList3 -> dot id FuncOrVarList2
+	| .
+
+
+Factor -> FuncOrVarList
+	| intnum
+	| floatnum
+	| stringlit
+	| lpar Expr rpar
+	| not Factor
+	| Sign Factor
+	| qm lsqbr Expr colon Expr colon Expr rsqbr .
+
+
+DimList -> lsqbr Intnum rsqbr DimList
+	| .
+
+
+VarDecl -> Type id DimList semi .
 VarDeclList -> VarDecl VarDeclList
-	| . 
+	| .
 
 
 FParam -> Type id DimList .
-FParamList -> FParam FParamList2 
+FParamList -> FParam FParamList2
 	| .
-FParamList2 -> comma Sys(deny) FParam FParamList2 
+FParamList2 -> comma FParam FParamList2
 	| .
 
 
 FuncDefList -> FuncDef FuncDefList
 	| .
-FuncDef -> func Sys(deny) id ScopeSpec Sys(scope) lpar Sys(deny) FParamList rpar Sys(deny) colon Sys(deny) FuncType Sys(deny) FuncBody .
+FuncDef -> func id ScopeSpec lpar FParamList rpar colon FuncType FuncBody .
 
 
-FuncBody -> lcurbr Sys(deny) FuncBody2 StatementList rcurbr Sys(deny)  . 
-FuncBody2 -> var Sys(deny) lcurbr Sys(deny) VarDeclList rcurbr Sys(deny)
-	| . 
+FuncBody -> lcurbr FuncBody2 StatementList rcurbr  .
+FuncBody2 -> var lcurbr VarDeclList rcurbr
+	| .
 
 
-FuncDecl -> func Sys(deny) id lpar Sys(deny) FParamList rpar Sys(deny) colon Sys(deny) FuncType Sys(deny) semi Sys(deny)  . 
+FuncDecl -> func id lpar FParamList rpar colon FuncType semi  .
 
 
-StatBlock -> lcurbr Sys(deny) StatementList rcurbr Sys(deny)
+StatBlock -> lcurbr StatementList rcurbr
 	| Statement
-	| . 
+	| .
 
 
 StatementList -> Statement StatementList
-	| . 
+	| .
 
 
-Statement -> FuncOrAssignList semi Sys(deny)
-	| if Sys(deny) lpar Sys(deny) Expr rpar Sys(deny) then Sys(deny) StatBlock else Sys(deny) StatBlock semi Sys(deny)
-	| while lpar Sys(deny) Expr rpar Sys(deny) StatBlock semi Sys(deny) Sys(left_root)
-	| read lpar Sys(deny) VarList rpar Sys(deny) semi Sys(deny) Sys(left_root)
-	| write lpar Sys(deny) Expr rpar Sys(deny) semi Sys(deny) Sys(left_root)
-	| return lpar Sys(deny) Expr rpar Sys(deny) semi Sys(deny) Sys(left_root)
-	| break semi Sys(deny) Sys(left_root)
-	| continue semi Sys(deny) Sys(left_root) . 
+Statement -> FuncOrAssignList semi
+	| if lpar Expr rpar then StatBlock else StatBlock semi
+	| while lpar Expr rpar StatBlock semi
+	| read lpar VarList rpar semi
+	| write lpar Expr rpar semi
+	| return lpar Expr rpar semi
+	| break semi
+	| continue semi  .
 
 
-FuncOrAssignList -> id FuncOrAssignList2  . 
-FuncOrAssignList2 -> IndiceList Sys(Var) FuncOrAssignList3
-	| lpar Sys(deny) AParams Sys(FCall) rpar Sys(deny) FuncOrAssignList4  . 
-FuncOrAssignList3 -> dot Sys(deny) id FuncOrAssignList2
-	| assign Expr Sys(ternary) . 
-FuncOrAssignList4 -> dot Sys(deny) id FuncOrAssignList5
-	| . 
-FuncOrAssignList5 -> IndiceList Sys(Var) dot Sys(deny) id FuncOrAssignList5
-	| lpar Sys(deny) AParams Sys(FCall) rpar Sys(deny) FuncOrAssignList6  . 
-FuncOrAssignList6 -> dot Sys(deny) id FuncOrAssignList5
-	| . 
+FuncOrAssignList -> id FuncOrAssignList2 .
+FuncOrAssignList2 -> IndiceList FuncOrAssignList3
+	| lpar AParams rpar FuncOrAssignList4 .
+FuncOrAssignList3 -> dot id FuncOrAssignList2
+	| assign Expr .
+FuncOrAssignList4 -> dot id FuncOrAssignList5
+	| .
+FuncOrAssignList5 -> IndiceList dot id FuncOrAssignList5
+	| lpar AParams rpar FuncOrAssignList6 .
+FuncOrAssignList6 -> dot id FuncOrAssignList5
+	| .
 
 
-IndiceList -> lsqbr Sys(deny) Expr rsqbr Sys(deny) IndiceList
-	| . 
+IndiceList -> lsqbr Expr rsqbr IndiceList
+	| .
 
-VarList -> id VarList2 . 
-VarList2 -> IndiceList Sys(Var) VarList3  . 
-VarList3 -> dot Sys(deny) id VarList2
-	| . 
+VarList -> id VarList2 .
+VarList2 -> IndiceList VarList3 .
+VarList3 -> dot id VarList2
+	| .
 
 
-ScopeSpec -> sr Sys(deny) id 
+ScopeSpec -> sr id
 	| .
 RelOp -> eq
 	| neq
 	| lt
 	| gt
 	| leq
-	| geq  . 
+	| geq .
 Sign -> plus
 	| minus .
-Type -> integer 
+Type -> integer
 	| float
-	| string 
-	| id  . 
+	| string
+	| id .
 Intnum -> intnum
-	| . 
+	| .
 MultOp -> mult
 	| div
 	| and .
-Visibility -> public 
+Visibility -> public
 	| private
-	|  . 
+	| .
 FuncType -> Type
 	| void .
 AddOp -> plus
 	| minus
 	| or .
-
-
-Sys(deny) -> .
-Sys(binary) -> .
-Sys(ternary) -> .
-Sys(Var) -> .
-Sys(FCall) -> .
-Sys(left_root) -> .
-Sys(scope) -> .

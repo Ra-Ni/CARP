@@ -1,0 +1,1 @@
+ignore = {'main', 'class', 'lcurbr', 'rcurbr', 'lpar', 'rpar', 'lsqbr', 'rsqbr'}
