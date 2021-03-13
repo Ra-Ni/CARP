@@ -45,8 +45,8 @@ IndiceList -> lsqbr Expr rsqbr IndiceList
 
 
 FuncVarList -> id FuncVarList2 .
-FuncVarList2 -> Var ADOPT FuncVarList3
-    | FCall ADOPT FuncVarList3 .
+FuncVarList2 -> Var FuncVarList3
+    | FCall FuncVarList3 .
 FuncVarList3 -> dot FuncVarList
     | .
 FCall -> lpar AParams rpar .
@@ -99,7 +99,7 @@ StatementList -> Statement StatementList
 	| .
 
 
-Statement -> FuncAssignList semi
+Statement -> id FuncAssignList semi
 	| if lpar Expr rpar then StatBlock else StatBlock semi
 	| while lpar Expr rpar StatBlock semi
 	| read lpar VarList rpar semi
@@ -110,14 +110,14 @@ Statement -> FuncAssignList semi
 
 FuncAssignList -> FuncAssignList1
     | FuncAssignList2 .
-FuncAssignList1 -> IndiceList #Var FuncAssignList3 .
-FuncAssignList2 -> lpar AParams rpar #FCall FuncAssignList4 .
+FuncAssignList1 -> IndiceList FuncAssignList3 .
+FuncAssignList2 -> lpar AParams rpar FuncAssignList4 .
 FuncAssignList3 -> dot id FuncAssignList | assign Expr .
 FuncAssignList4 ->  dot id FuncAssignList | .
 
 
 
-
+/*
 FuncOrAssignList -> id FuncOrAssignList2 .
 FuncOrAssignList2 -> IndiceList FuncOrAssignList3
 	| lpar AParams rpar FuncOrAssignList4 .
@@ -129,7 +129,7 @@ FuncOrAssignList5 -> IndiceList dot id FuncOrAssignList5
 	| lpar AParams rpar FuncOrAssignList6 .
 FuncOrAssignList6 -> dot id FuncOrAssignList5
 	| .
-
+*/
 
 VarList -> id VarList2 .
 VarList2 -> IndiceList VarList3 .

@@ -26,7 +26,7 @@ if __name__ == '__main__':
     dir = '_config/'
     table_path = dir + 'll1.bak.xz'
     sets_path = dir + 'vitals.bak.xz'
-    target = '../examples/polynomial.src'
+    target = '../examples/test.src'
 
     sets = pd.read_pickle(sets_path)
     table = pd.read_pickle(table_path)

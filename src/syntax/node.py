@@ -58,7 +58,6 @@ class Node:
             child.parent = self.parent
 
 
-
 def difference(first: str, second: str):
     return sum(0 if i[0] == i[1] else 1 for i in zip(first, second)) + abs(len(first) - len(second))
 
@@ -271,10 +270,12 @@ _SYS = {
     'Sys(scope)': _scope
 }
 
+
+
 class NodeBuilder:
     def __init__(self):
-        self.prebuilds = [RecursionHandler(), ADOPTHandler()]
-        self.postbuilds = [BinaryOpHandler()]
+        self.prebuilds = []
+        self.postbuilds = []
     def postbuild(self, root: Node):
         for routine in self.postbuilds:
             if routine.apply(root):
@@ -285,8 +286,12 @@ class NodeBuilder:
     def build(self, root: Node, *children: str):
         nodes = []
         for child in children:
+            if child in {'MultOp'}:
+                print('yhes')
             node = Node(child, root)
             for routine in self.prebuilds:
                 routine.apply(node)
             nodes.append(node)
         return nodes
+
+
