@@ -1,25 +1,22 @@
-/*
-    <push> -> push
-*/
-
 Start -> Prog .
 
-Prog -> ClassList <push> FuncDefList <push> main FuncBody <push> .
 
-ClassList -> ClassDecl <push> ClassList
-	| <push>.
-ClassDecl -> class id <push> InheritList <push> lcurbr MembList <push> rcurbr semi .
+Prog -> ClassList FuncDefList main FuncBody .
 
-InheritList -> inherits id <push> InheritList2
+ClassList -> ClassDecl ClassList
 	| .
-InheritList2 -> comma id <push> InheritList2
-	| .
+ClassDecl -> class id InheritList lcurbr MembList rcurbr semi .
 
-MemberDecl -> FuncDecl <push>
-	| VarDecl <push> .
-MembList -> Visibility MemberDecl MembList
+InheritList -> inherits id InheritList2
+	| .
+InheritList2 -> comma id InheritList2
 	| .
 
+MemberDecl -> FuncDecl
+	| VarDecl .
+DataMember -> Visibility MemberDecl .
+MembList -> DataMember MembList
+	| .
 
 AParams -> Expr AParams2
 	| .
@@ -42,14 +39,19 @@ Term2 -> MultOp Factor Term2
 	| .
 
 
-FuncOrVarList -> id FuncOrVarList2 .
-FuncOrVarList2 -> IndiceList FuncOrVarList3
-	| lpar AParams rpar FuncOrVarList3 .
-FuncOrVarList3 -> dot id FuncOrVarList2
+IndiceList -> lsqbr Expr rsqbr IndiceList
 	| .
 
 
-Factor -> FuncOrVarList
+
+FuncVarList -> id FuncVarList2 .
+FuncVarList2 -> Var ADOPT FuncVarList3
+    | FCall ADOPT FuncVarList3 .
+FuncVarList3 -> dot FuncVarList
+    | .
+FCall -> lpar AParams rpar .
+Var -> IndiceList .
+Factor -> FuncVarList
 	| intnum
 	| floatnum
 	| stringlit
@@ -97,7 +99,7 @@ StatementList -> Statement StatementList
 	| .
 
 
-Statement -> FuncOrAssignList semi
+Statement -> FuncAssignList semi
 	| if lpar Expr rpar then StatBlock else StatBlock semi
 	| while lpar Expr rpar StatBlock semi
 	| read lpar VarList rpar semi
@@ -105,6 +107,15 @@ Statement -> FuncOrAssignList semi
 	| return lpar Expr rpar semi
 	| break semi
 	| continue semi  .
+
+FuncAssignList -> FuncAssignList1
+    | FuncAssignList2 .
+FuncAssignList1 -> IndiceList #Var FuncAssignList3 .
+FuncAssignList2 -> lpar AParams rpar #FCall FuncAssignList4 .
+FuncAssignList3 -> dot id FuncAssignList | assign Expr .
+FuncAssignList4 ->  dot id FuncAssignList | .
+
+
 
 
 FuncOrAssignList -> id FuncOrAssignList2 .
@@ -119,9 +130,6 @@ FuncOrAssignList5 -> IndiceList dot id FuncOrAssignList5
 FuncOrAssignList6 -> dot id FuncOrAssignList5
 	| .
 
-
-IndiceList -> lsqbr Expr rsqbr IndiceList
-	| .
 
 VarList -> id VarList2 .
 VarList2 -> IndiceList VarList3 .

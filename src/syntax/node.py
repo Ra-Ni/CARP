@@ -5,34 +5,7 @@ from collections import deque
 
 import pydot
 
-class State:
-    def __init__(self, state):
-        self.state = state
-        self.left_most = None
-        self.right = None
-        self.left = None
-        self.parent = None
-        self._uid = uuid.uuid4()
-
-    @staticmethod
-    def make_siblings(first, *other):
-        if not first.left_most:
-            first.left_most = first
-        current = first
-
-        for second in other:
-            current.right = second
-            second.left = current
-            second.parent = current.parent
-            second.left_most = current.left_most
-
-    @staticmethod
-    def make_family(first, ):
-    def __iter__(self):
-
-        while :
-            yield child
-
+from lex import token
 
 
 
@@ -83,6 +56,7 @@ class Node:
         self.parent.children = left + middle + right
         for child in self.children:
             child.parent = self.parent
+
 
 
 def difference(first: str, second: str):
@@ -185,23 +159,91 @@ def remove_dups(root):
             node.remove()
 
 
-def _flatten_recursion(root):
-    if root.parent and difference(root.label, root.parent.label) <= 1:
-        root.__dict__.update(root.parent)
+class Routine:
+    def apply(self, root):
+        raise NotImplementedError
 
-        root.parent.__dict__()
-        root.parent.children.pop()
+class RecursionHandler(Routine):
+    def apply(self, root):
+        if root.parent and difference(root.label, root.parent.label) <= 1:
+            root.parent.children.pop()
 
-        root.children = root.parent.children
-        root.parent = root.parent.parent
-        # root.remove()
+            root.children = root.parent.children
+            root._uid = root.parent._uid
+            root.parent = root.parent.parent
 
-        # root.parent.children.pop()
-        # root.children = root.parent.children
-        # root.parent = root.parent.parent
-        # root.parent.parent.children
+            # root.remove()
+
+            # root.parent.children.pop()
+            # root.children = root.parent.children
+            # root.parent = root.parent.parent
+            # root.parent.parent.children
+class BinaryOpHandler(Routine):
+    def __init__(self):
+        self.ops = {
+            '+',
+            '-',
+            'and',
+            '*',
+            '='
+        }
+    def apply(self, root):
+        if root.label in self.ops:
+            root.parent.label = root.label
+            root.remove()
+            return True
+        return False
+
+class EpsilonHandler(Routine):
+    def apply(self, root):
+        if root.label == 'ε':
+            root.parent.children.pop()
+            if all(x.label == 'ε' for x in root.parent.children):
+                root.parent.label = 'ε'
+                self.apply(root.parent)
+            return True
+        return False
 
 
+class DudHandler(Routine):
+    def __init__(self):
+        self._duds = {
+            'lcurbr', 'rcurbr',
+            'lpar', 'rpar',
+            'lsqbr', 'rsqbr',
+            'sr',
+            'colon',
+            'dot',
+            'semi',
+            'qm',
+            'inherits',
+            'comma',
+            'class',
+            'main',
+            'then',
+            'else',
+            'var'
+        }
+
+    def apply(self, root):
+        if root.label in self._duds:
+            root.parent.children.pop()
+            root.parent = None
+
+
+class ADOPTHandler(Routine):
+
+    def apply(self, root):
+        if root.label == 'ADOPT':
+
+            root.parent.children.pop()
+            first = root.parent.children.pop()
+            second = root.parent.children.pop()
+
+            first.adopt(second)
+            root.parent.adopt(first)
+            root.label = 'ε'
+            root.parent = None
 
 def draw(src: str, root):
     graph = pydot.Dot('AST', graph_type='digraph')
@@ -231,13 +273,20 @@ _SYS = {
 
 class NodeBuilder:
     def __init__(self):
-        self.routines = [_flatten_recursion]
+        self.prebuilds = [RecursionHandler(), ADOPTHandler()]
+        self.postbuilds = [BinaryOpHandler()]
+    def postbuild(self, root: Node):
+        for routine in self.postbuilds:
+            if routine.apply(root):
+                break
+
+
 
     def build(self, root: Node, *children: str):
         nodes = []
         for child in children:
             node = Node(child, root)
-            for routine in self.routines:
-                routine(node)
+            for routine in self.prebuilds:
+                routine.apply(node)
             nodes.append(node)
         return nodes

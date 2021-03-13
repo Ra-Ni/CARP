@@ -19,26 +19,14 @@ def update():
     derivations = Path(filename + 'derivations')
     ast = Path(filename + 'ast')
 
-    response = analysis.parse(target)
-    print(response)
-    # derivations.write_text(analysis.derivations, encoding='UTF-16')
-    print([str(x.type) for x in analysis.derivations])
-
-    analysis.ll1.to_csv('_config/ll1.csv')
-    print(analysis.ll1.to_string())
-    print(analysis.logs)
-
-
-    errors.write_text(analysis.errors, encoding='UTF-16')
-    ast.write_text(analysis.ll1.to_string(), encoding='UTF-16')
 
 
 if __name__ == '__main__':
-    # update()
+    update()
     dir = '_config/'
     table_path = dir + 'll1.bak.xz'
     sets_path = dir + 'vitals.bak.xz'
-    target = '../examples/test.src'
+    target = '../examples/polynomial.src'
 
     sets = pd.read_pickle(sets_path)
     table = pd.read_pickle(table_path)

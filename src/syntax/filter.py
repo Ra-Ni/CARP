@@ -62,19 +62,20 @@ class Filter:
 
             if self.top.label == 'ε':
                 self.stack.pop()
-                self.productions.append(self.top)
+                builder.postbuild(self.top)
 
             elif self.top.label in self.terminals:
                 if self.top.label == self.lookahead.type:
-
+                    self.top.label = self.lookahead.lexeme
                     self.productions.append(self.lookahead)
                     self.stack.pop()
-
+                    builder.postbuild(self.top)
                     self.lookahead = next(self.iterator, None)
                 else:
                     self._recover()
 
             else:
+
                 non_terminal = self.table.at[self.top.label, self.lookahead.type]
 
                 if non_terminal:
