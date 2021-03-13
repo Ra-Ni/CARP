@@ -26,7 +26,7 @@ if __name__ == '__main__':
     dir = '_config/'
     table_path = dir + 'll1.bak.xz'
     sets_path = dir + 'vitals.bak.xz'
-    target = '../examples/test.src'
+    target = '../examples/polynomial.src'
 
     sets = pd.read_pickle(sets_path)
     table = pd.read_pickle(table_path)
@@ -47,6 +47,7 @@ if __name__ == '__main__':
     s.open(target)
 
     resp, deriv = f.parse(s)
+
     # for d in deriv:
     #     print(d)
     # print(resp)
@@ -55,4 +56,5 @@ if __name__ == '__main__':
         print(node, node.parent)
     # remove_duds(f.root)
     # remove_dups(f.root)
+    print(resp)
     draw('test10.png', f.root)

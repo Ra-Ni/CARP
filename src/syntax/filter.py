@@ -58,9 +58,15 @@ class Filter:
         self.lookahead = next(self.iterator, None)
 
         while self.stack:
-            self.top = self.stack[-1]
 
-            if self.top.label == 'ε':
+            self.top = self.stack[-1]
+            if 'IndiceList' in self.top.label:
+                print('f')
+            if builder.postbuild(self.top):
+                self.stack.pop()
+
+
+            elif self.top.label == 'ε':
                 self.stack.pop()
                 builder.postbuild(self.top)
 

@@ -193,16 +193,6 @@ class BinaryOpHandler(Routine):
             return True
         return False
 
-class EpsilonHandler(Routine):
-    def apply(self, root):
-        if root.label == 'ε':
-            root.parent.children.pop()
-            if all(x.label == 'ε' for x in root.parent.children):
-                root.parent.label = 'ε'
-                self.apply(root.parent)
-            return True
-        return False
-
 
 class DudHandler(Routine):
     def __init__(self):
@@ -235,14 +225,18 @@ class ADOPTHandler(Routine):
     def apply(self, root):
         if root.label == 'ADOPT':
 
+
             root.parent.children.pop()
             first = root.parent.children.pop()
             second = root.parent.children.pop()
+            second.parent = first
+            first.children.insert(0, second)
 
-            first.adopt(second)
             root.parent.adopt(first)
             root.label = 'ε'
             root.parent = None
+            return True
+        return False
 
 def draw(src: str, root):
     graph = pydot.Dot('AST', graph_type='digraph')
@@ -274,23 +268,23 @@ _SYS = {
 
 class NodeBuilder:
     def __init__(self):
-        self.prebuilds = []
-        self.postbuilds = []
+        self.prebuilds = [RecursionHandler(), DudHandler()]
+        self.postbuilds = [ADOPTHandler()]
     def postbuild(self, root: Node):
         for routine in self.postbuilds:
             if routine.apply(root):
-                break
+                return True
+        return False
 
 
 
     def build(self, root: Node, *children: str):
         nodes = []
         for child in children:
-            if child in {'MultOp'}:
-                print('yhes')
             node = Node(child, root)
             for routine in self.prebuilds:
                 routine.apply(node)
+
             nodes.append(node)
         return nodes
 
