@@ -5,8 +5,6 @@ from collections import deque
 
 import pydot
 
-from lex import token
-
 
 
 class Node:
@@ -24,7 +22,7 @@ class Node:
         return str(self._uid)
 
     def __hash__(self):
-        return hash(self._uid)
+        return self._uid
 
     def __eq__(self, other):
         return isinstance(other, Node) and self._uid == other._uid
@@ -34,10 +32,6 @@ class Node:
 
     def __str__(self):
         return self.label
-
-    def apply(self, *args: str):
-        for arg in args:
-            _SYS[arg](self)
 
     def adopt(self, *children) -> None:
 
@@ -67,7 +61,6 @@ def bfs(root):
         node = queue.popleft()
         queue.extend(node.children)
         yield node
-
 
 def _adopt(root, *children) -> None:
     for child in children:
@@ -162,21 +155,6 @@ class Routine:
     def apply(self, root):
         raise NotImplementedError
 
-class RecursionHandler(Routine):
-    def apply(self, root):
-        if root.parent and difference(root.label, root.parent.label) <= 1:
-            root.parent.children.pop()
-
-            root.children = root.parent.children
-            root._uid = root.parent._uid
-            root.parent = root.parent.parent
-
-            # root.remove()
-
-            # root.parent.children.pop()
-            # root.children = root.parent.children
-            # root.parent = root.parent.parent
-            # root.parent.parent.children
 class BinaryOpHandler(Routine):
     def __init__(self):
         self.ops = {
@@ -254,21 +232,9 @@ def draw(src: str, root):
     graph.write_png(src, encoding='utf-8')
 
 
-_SYS = {
-    'Sys(deny)': _deny,
-    'Sys(binary)': _binary,
-    'Sys(unary)': _unary,
-    'Sys(Var)': lambda _x: _new(_x, 'Var'),
-    'Sys(FCall)': lambda _x: _new(_x, 'FCall'),
-    'Sys(root)': _root,
-    'Sys(scope)': _scope
-}
-
-
-
 class NodeBuilder:
     def __init__(self):
-        self.prebuilds = [RecursionHandler(), DudHandler()]
+        self.prebuilds = [DudHandler()]
         self.postbuilds = [ADOPTHandler()]
     def postbuild(self, root: Node):
         for routine in self.postbuilds:
@@ -280,6 +246,7 @@ class NodeBuilder:
 
     def build(self, root: Node, *children: str):
         nodes = []
+
         for child in children:
             node = Node(child, root)
             for routine in self.prebuilds:
@@ -289,3 +256,34 @@ class NodeBuilder:
         return nodes
 
 
+def to_AST(root: Node):
+    reverse_bfs = list(bfs(root))
+    reverse_bfs.reverse()
+    for node in reverse_bfs:
+        if node.parent and difference(node.parent.label, node.label) <= 1:
+            node.remove()
+
+    reverse_bfs = list(bfs(root))
+    reverse_bfs.reverse()
+    for node in reverse_bfs:
+        if node.label == 'ε':
+            if len(node.parent.children) == 1:
+                node.parent.label = node.label
+            node.remove()
+
+    reverse_bfs = list(bfs(root))
+    reverse_bfs.reverse()
+    for node in reverse_bfs:
+        if not node.children and len(node.parent.children) == 1:
+            node.parent.label = node.label
+            node.remove()
+
+
+    for node in list(bfs(root)):
+        if node.parent and len(node.children) == 1:
+            node.remove()
+
+    duds = {'{', '}', '(', ')', ';', ',', '.', '::', ':', '[', ']'}
+    for node in bfs(root):
+        if node.label in duds:
+            node.remove()

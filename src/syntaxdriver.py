@@ -57,4 +57,5 @@ if __name__ == '__main__':
     # remove_duds(f.root)
     # remove_dups(f.root)
     print(resp)
+    to_AST(f.root)
     draw('test10.png', f.root)

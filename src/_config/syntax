@@ -1,6 +1,5 @@
 Start -> Prog .
 
-
 Prog -> ClassList FuncDefList main FuncBody .
 
 ClassList -> ClassDecl ClassList
@@ -44,6 +43,7 @@ IndiceList -> lsqbr Expr rsqbr IndiceList
 
 
 ADOPT -> .
+
 FuncVarList -> id FuncVarList2 .
 FuncVarList2 -> Var ADOPT FuncVarList3
     | FCall ADOPT FuncVarList3 .
@@ -117,10 +117,8 @@ Statement4 -> FCall ADOPT Statement6 .
 Statement5 -> dot id Statement2 | assign Expr semi .
 Statement6 ->  dot id Statement2 | semi .
 
-VarList -> id VarList2 .
-VarList2 -> IndiceList VarList3 .
-VarList3 -> dot id VarList2
-	| .
+VarList -> id IndiceList VarList2 .
+VarList2 -> dot VarList | .
 
 
 ScopeSpec -> sr id

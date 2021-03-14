@@ -60,15 +60,9 @@ class Filter:
         while self.stack:
 
             self.top = self.stack[-1]
-            if 'IndiceList' in self.top.label:
-                print('f')
-            if builder.postbuild(self.top):
+            if self.top.label == 'ε':
                 self.stack.pop()
 
-
-            elif self.top.label == 'ε':
-                self.stack.pop()
-                builder.postbuild(self.top)
 
             elif self.top.label in self.terminals:
                 if self.top.label == self.lookahead.type:
@@ -88,10 +82,10 @@ class Filter:
                     self.log.debug('[{}]{}::{} → {}'.format(self.lookahead.location, 'INFO',
                                                             self.top.label, ' '.join(non_terminal)))
 
-                    children = builder.build(self.top, *non_terminal)
-                    children.reverse()
+                    self.top.adopt(*non_terminal)
+
                     self.stack.pop()
-                    self.stack.extend(children)
+                    self.stack.extend(self.top.children[::-1])
 
                 else:
                     self._recover()
@@ -106,4 +100,3 @@ class Filter:
         self.top = self.root
         self.stack = [self.top]
         self.error = False
-
