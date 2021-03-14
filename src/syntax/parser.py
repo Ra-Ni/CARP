@@ -1,10 +1,8 @@
-import pydot
-
 from lex import scanner
-from syntax.node import Node, NodeBuilder
+from syntax.node import Node
 
 
-class Filter:
+class Parser:
     def __init__(self, table, follow, terminals, logger):
         self.table = table
         self.follow = follow
@@ -51,7 +49,6 @@ class Filter:
         self.log.error('[{}]{}::Invalid Syntax {} not in {}'.format(location, 'ERROR', label, msg))
 
     def parse(self, reader: scanner):
-        builder = NodeBuilder()
 
         self.reset()
         self.iterator = iter(reader)
@@ -63,13 +60,12 @@ class Filter:
             if self.top.label == 'ε':
                 self.stack.pop()
 
-
             elif self.top.label in self.terminals:
                 if self.top.label == self.lookahead.type:
                     self.top.label = self.lookahead.lexeme
                     self.productions.append(self.lookahead)
                     self.stack.pop()
-                    builder.postbuild(self.top)
+
                     self.lookahead = next(self.iterator, None)
                 else:
                     self._recover()

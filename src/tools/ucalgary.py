@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 import urllib.parse
 import pandas as pd
@@ -69,34 +68,19 @@ def get(grammar, ll1_backup: str, vitals_backup: str, online: bool = False):
     return get_ll1(grammar, ll1_backup), get_vitals(grammar, vitals_backup)
 
 
-def get_symantec(table: pd.DataFrame):
-    duds = {'lcurbr', 'rcurbr',
-            'lpar', 'rpar',
-            'lsqbr', 'rsqbr',
-            'sr',
-            'colon',
-            'dot',
-            'semi',
-            'qm',
-            'inherits',
-            'comma',
-            'class',
-            'main',
-            'then',
-            'else'
-            }
+def load(config_dir: str = './_config/', online: bool = False):
+    grammar = Path(config_dir + 'syntax')
+    ll1_backup = Path(config_dir + 'll1.bak.xz')
+    vitals_backup = Path(config_dir + 'vitals.bak.xz')
 
-    regex = r'|'.join(d for d in duds)
-    def function(x):
-        y = x.str.join(' ')
-        y = y.str.replace(regex, ' ', regex=True)
-        y = y.str.strip()
-        y = y.replace(r'\s+', r' ', regex=True)
-        return y
+    if not online:
+        if not ll1_backup.exists() \
+                or not vitals_backup.exists() \
+                or ll1_backup.stat().st_mtime < grammar.stat().st_mtime:
+            online = True
 
-    symantec = table.apply(function)
+    if online:
+        with open(grammar, 'r') as fstream:
+            grammar = urllib.parse.quote_plus(fstream.read())
 
-    def merge_recursion(x):
-        y = x.str.replace(r'\s+' + x.name + '$', '', regex=True)
-        return y
-    symantec = symantec.apply(merge_recursion, axis=1)
+    return get(grammar, ll1_backup, vitals_backup, online)

@@ -7,11 +7,16 @@ from lex.token import token
 
 class scanner:
 
-    def __init__(self):
+    def __init__(self, config_dir: str = './_config/', **kwargs):
         self.tokens = None
         self.reserved = None
-        self.data = None
-        self.opts = {}
+
+        self.opts = {'suppress_comments': 0}
+        self.opts.update(**kwargs)
+
+        data = Path(config_dir + 'lex').read_text()
+        data += "\nself.tokens = '|'.join('(?P<%s>%s)' % pair for pair in tokens)\nself.reserved = reserved"
+        self.data = exec(data)
 
     def open(self, file: str):
         with open(file, 'r') as fstream:
@@ -44,29 +49,3 @@ class scanner:
 
             if 'comment' in kind:
                 line_num += value.count('\n')
-
-
-def load(**kwargs):
-    opts = {'dir': './_config/',
-            'lex_config': 'lex',
-            'lex_suppress_comments': 0}
-    opts.update(kwargs)
-
-    opts['lex_config'] = Path(opts['dir'] + opts['lex_config'])
-
-    if opts['lex_config'].is_dir():
-        os.remove(opts['lex_config'])
-
-    with open(opts['lex_config'], 'r') as fstream:
-        injection = fstream.read()
-
-    injection += "\nreader.tokens = '|'.join('(?P<%s>%s)' % pair for pair in tokens)\nreader.reserved = reserved"
-    reader = scanner()
-    exec(injection)
-
-    if 'lex_data' in opts:
-        reader.open(opts['lex_data'])
-
-    reader.opts['suppress_comments'] = opts['lex_suppress_comments']
-
-    return reader

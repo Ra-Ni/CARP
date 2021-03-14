@@ -1,7 +1,7 @@
 import os
 from collections import deque
 import sys
-import lex as lx
+from lex import *
 
 
 def help(exception: Exception = None):
@@ -35,7 +35,8 @@ if __name__ == '__main__':
             data = fstream.read()
 
         output_path, _ = os.path.splitext(path)
-        s = lx.load(lex_data=path)
+        s = scanner()
+        s.open(path)
         tokens = deque(list(iter(s)))
         lex_errors = f'{output_path}.outlexerrors'
         lex_tokens = f'{output_path}.outlextokens'

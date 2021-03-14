@@ -1,61 +1,45 @@
+import logging
+import uuid
 from pathlib import Path
 
-# import syntax as syn
-import lex as lx
-from syntax.filter import Filter
-from syntax.node import *
-from syntax.node import _adopt
-import syntax as syn
-import pandas as pd
-
-
-def update():
-
-    analysis = syn.load()
-    target = '../examples/bubblesort.src'
-    path = Path(target)
-    filename = str(path.parent) + '/' + str(path.stem) + '.out'
-    errors = Path(filename + 'syntaxerrors')
-    derivations = Path(filename + 'derivations')
-    ast = Path(filename + 'ast')
-
-
+import tools.ucalgary as ucal
+from syntax import *
+from lex import *
 
 if __name__ == '__main__':
-    update()
     dir = '_config/'
-    table_path = dir + 'll1.bak.xz'
-    sets_path = dir + 'vitals.bak.xz'
-    target = '../examples/polynomial.src'
+    out_dir = '../examples/'
+    target = Path('polynomial.src')
 
-    sets = pd.read_pickle(sets_path)
-    table = pd.read_pickle(table_path)
-    terminals = table.columns
-    non_terminals = table.index
-    first = sets['first set']
-    follow = sets['follow set']
+    out_ast = Path(out_dir + target.stem + '.outast.png')
+    out_derivations = Path(out_dir + target.stem + '.outderivations.log')
+    out_errors = Path(out_dir + target.stem + '.outerrors.log')
+    target = Path(out_dir + str(target))
 
-    fh = logging.FileHandler('ast.log', mode='w', encoding='utf-16')
-    fh.setLevel(logging.DEBUG)
+    ll1, vitals = ucal.load(online=False)
+    first = vitals['first set']
+    follow = vitals['follow set']
+    terminals = ll1.columns
+    non_terminals = ll1.index
+
+    fh = logging.FileHandler(out_errors, mode='w', encoding='utf-16')
+    fh.setLevel(logging.ERROR)
     logger = logging.getLogger(str(uuid.uuid4()))
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.ERROR)
     logger.addHandler(fh)
 
-
-    f = Filter(table, follow, terminals, logger)
-    s = lx.load(lex_suppress_comments=1)
+    s = scanner(suppress_comments=1)
     s.open(target)
 
-    resp, deriv = f.parse(s)
+    f = Parser(ll1, follow, terminals, logger)
+    resp, derivations = f.parse(s)
+    out_derivations.write_text(' '.join(x.type for x in derivations))
 
-    # for d in deriv:
-    #     print(d)
-    # print(resp)
-    # print(f.root)
-    for node in bfs(f.root):
-        print(node, node.parent)
-    # remove_duds(f.root)
-    # remove_dups(f.root)
+    tree = AST(f.root)
+
     print(resp)
-    to_AST(f.root)
-    draw('test10.png', f.root)
+
+    tree.apply('all')
+
+    tree.render(out_ast)
+
