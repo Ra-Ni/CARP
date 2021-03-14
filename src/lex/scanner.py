@@ -14,7 +14,7 @@ class scanner:
         self.opts = {'suppress_comments': 0}
         self.opts.update(**kwargs)
 
-        data = Path(config_dir + 'lex').read_text()
+        data = Path(config_dir + 'lex.conf').read_text()
         data += "\nself.tokens = '|'.join('(?P<%s>%s)' % pair for pair in tokens)\nself.reserved = reserved"
         self.data = exec(data)
 

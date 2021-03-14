@@ -69,7 +69,7 @@ def get(grammar, ll1_backup: str, vitals_backup: str, online: bool = False):
 
 
 def load(config_dir: str = './_config/', online: bool = False):
-    grammar = Path(config_dir + 'syntax')
+    grammar = Path(config_dir + 'grammar.conf')
     ll1_backup = Path(config_dir + 'll1.bak.xz')
     vitals_backup = Path(config_dir + 'vitals.bak.xz')
 
