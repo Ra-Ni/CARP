@@ -1,8 +1,9 @@
-# LexMe
+# Compiling Another Random Program (CARP)
 
-LexMe is a lexical analyzer that accepts any regular expressions in a config file and produces tokens by leveraging python's
-re library. LexMe is simple and intuitive. While not as performant as other lexical analyzers (especially those that utilize a finite state machine table),
-it does allow one to easily transform lexemes into tokens.
+![](doc/other/logo.png)
+
+CARP is a compiler written in Python. It is simple, intuitive, and customizable. CARP can be configured to accept any language or pattern. 
+
 
 ## Dependencies
 
