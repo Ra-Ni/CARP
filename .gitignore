@@ -2,3 +2,4 @@
 examples
 doc/assets
 src/lex/__pycache__
+/tools/
