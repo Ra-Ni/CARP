@@ -9,7 +9,7 @@ from lex import *
 if __name__ == '__main__':
     dir = '_config/'
     out_dir = '../examples/'
-    target = Path('polynomial.src')
+    target = Path('bubblesort.src')
 
     out_ast = Path(out_dir + target.stem + '.outast.png')
     out_derivations = Path(out_dir + target.stem + '.outderivations.log')
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     terminals = ll1.columns
     non_terminals = ll1.index
 
-    fh = logging.FileHandler(out_errors, mode='w', encoding='utf-16')
+    fh = logging.FileHandler(out_errors, mode='w', encoding='utf-8')
     fh.setLevel(logging.ERROR)
     logger = logging.getLogger(str(uuid.uuid4()))
     logger.setLevel(logging.ERROR)

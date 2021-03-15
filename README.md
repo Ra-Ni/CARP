@@ -4,15 +4,20 @@ LexMe is a lexical analyzer that accepts any regular expressions in a config fil
 re library. LexMe is simple and intuitive. While not as performant as other lexical analyzers (especially those that utilize a finite state machine table),
 it does allow one to easily transform lexemes into tokens.
 
-## Prerequisites
+## Dependencies
 
 - Python 3.7+
+- Pandas
+- Pydot
 
-## Configuration File
 
-1. Run the editor for the config file included:
+## Lexical Analyzer 
+
+### Configuration File
+
+1. Run a text editor on `lex.conf`:
 ```shell
-vim config
+vim lex.conf
 ```
 
 2. Add or remove token-regex pairs in tokens:
@@ -28,7 +33,9 @@ reserved = {'hello',
             'if', 
             'else'}
 ```
-## Command Line Arguments
+
+
+### Command Line Arguments
 
 ```shell
 lexdriver.py <file> [config]
@@ -43,7 +50,8 @@ lexdriver.py <file> [config]
             type(tokens) -> list(tuple(str(id), str(regex))
 ```
 
-## Regular Expressions
+### Regular Expressions
+
 
 The following regular expressions supported by default in LexMe:
 ```regexp
@@ -80,9 +88,8 @@ block_comment:
  /[*](?:.|\s)*?[*]/' 
 
 ```
-The regular expressions for operators and reserved words have been omitted in this document since they are trivial.
 
-## Finite State Machine
+### Finite State Machine
 
 A lexical analyzer utilizing finite state machines would convert the previously mentioned regular expressions into their posix
 notation and produce the corresponding minimum DFA in the automata library. The final finite state machine is a unification of all
@@ -96,7 +103,11 @@ entire lexical specification respectively. Other images may be viewed in the 'im
 
 
 ![](doc/assets/total.png "Minimum DFA representation of every token in the lexical specification")
-## Design Details
+
+
+The regular expressions for operators and reserved words have been omitted in this document since they are trivial.
+
+### Design Details
 
 The lex library contains the scanner and token structures. The former reads the input character by character once the contents
 of the input file stream have been stored in a buffer. If a match is found, the scanner generates a token structure and yields
@@ -108,6 +119,140 @@ file is a fragment of a program, whose purpose is to allow customizations to the
 
 The follow figure shows the relation between each object:
 ![](doc/assets/design.png)
+
+
+## Syntax Analyzer
+
+
+### Configuration File
+
+1. Run a text editor on `grammar.conf`:
+```shell
+vim grammar.conf
+```
+
+2. Add, edit, or remove entries into the file:
+```shell
+Expr -> ArithExpr Expr2 .
+Expr2 -> RelOp ArithExpr .
+```
+
+**Note**: Terminals are represented in lower case, while non-terminals start with an upper case. Refer to [ucalgary](https://smlweb.cpsc.ucalgary.ca/) for more information on the format. 
+
+Adding an extra character (or number) in non-terminal expressions flattens the entire expression as if it were a continuation of the original statement.
+
+For example, the previous expression's tree structure would normally be represented as:
+
+```shell
+Expr
+|---- ArithExpr
+|---- Expr2
+       |---- RelOp
+       |---- ArithExpr
+ 
+```
+
+However, LexMe merges non-terminal names that have a difference of one character at the end:
+
+```shell
+Expr
+|---- ArithExpr
+|---- RelOp
+|---- ArithExpr
+```
+
+### Command Line Arguments
+
+The directories have been hard coded in the main function for testing purposes. A future version of the driver will be provided with this feature.
+
+For now, use:
+
+```shell
+syntaxdriver.py
+```
+
+### Rules and Formats
+
+The following rules are supported by default in LexMe:
+```text
+<START>        ::= <prog>
+<prog>         ::= {{<classDecl>}} {{<funcDef>}} 'main' <funcBody>
+<classDecl>    ::= 'class' 'id' [['inherits' 'id' {{',' 'id'}}]] '{' {{<visibility> <memberDecl>}} '}' ';'
+<visibility>   ::= 'public' | 'private' | EPSILON
+<memberDecl>   ::= <funcDecl> | <varDecl>  
+<funcDecl>     ::= 'func' 'id' '(' <fParams> ')' ':' <type> ';' 
+                |  'func' 'id' '(' <fParams> ')' ':' 'void' ';' 
+<funcHead>     ::= 'func' [['id' 'sr']] 'id' '(' <fParams> ')' ':' <type> 
+                |  'func' [['id' 'sr']] 'id' '(' <fParams> ')' ':' 'void'
+<funcDef>      ::= <funcHead> <funcBody> 
+<funcBody>     ::= [[ 'var' '{' {{<varDecl>}} '}' ]] {{<statement>}}
+<varDecl>      ::= <type> 'id' {{<arraySize>}} ';'
+<statement>    ::= <assignStat> ';'
+                |  'if'     '(' <relExpr> ')' 'then' <statBlock> 'else' <statBlock> ';'
+                |  'while'  '(' <relExpr> ')' <statBlock> ';'
+                |  'read'   '(' <variable> ')' ';'
+                |  'write'  '(' <expr> ')' ';'
+                |  'return' '(' <expr> ')' ';'
+                |  'break' ';'
+                |  'continue' '; '
+                |  <functionCall> ';'
+<assignStat>   ::= <variable> <assignOp> <expr>
+<statBlock>    ::= '{' {{<statement>}} '}' | <statement> | EPSILON  
+<expr>         ::= <arithExpr> | <relExpr>
+<relExpr>      ::= <arithExpr> <relOp> <arithExpr>
+<arithExpr>    ::= <arithExpr> <addOp> <term> | <term> 
+<sign>         ::= '+' | '-'
+<term>         ::= <term> <multOp> <factor> | <factor>
+<factor>       ::= <variable>
+                |  <functionCall>
+                |  'intLit' | 'floatLit' | 'stringLit' 
+                |  '(' <arithExpr> ')'
+                |  'not' <factor>
+                |  <sign> <factor>
+                |  'qm' '[' <expr> ':' <expr> ':' <expr> ']' 
+<variable>     ::= {{<idnest>}} 'id' {{<indice>}}
+<functionCall> ::= {{<idnest>}} 'id' '(' <aParams> ')'
+<idnest>       ::= 'id' {{<indice>}} '.'
+                |  'id' '(' <aParams> ')' '.'
+<indice>       ::= '[' <arithExpr> ']'
+<arraySize>    ::= '[' 'intNum' ']' | '[' ']'
+<type>         ::= 'integer' | 'float' | 'string' | 'id'
+<fParams>      ::= <type> 'id' {{<arraySize>}} {{<fParamsTail>}} | EPSILON  
+<aParams>      ::= <expr> {{<aParamsTail>}} | EPSILON 
+<fParamsTail>  ::= ',' <type> 'id' {{<arraySize>}}
+<aParamsTail>  ::= ',' <expr>
+<assignOp>     ::= '='
+<relOp>        ::= 'eq' | 'neq' | 'lt' | 'gt' | 'leq' | 'geq' 
+<addOp>        ::= '+' | '-'
+<multOp>       ::= '*' | '/'
+```
+
+### Abstract Syntax Tree (AST)
+
+The syntax library produces a concrete tree, which is then converted to an abstract tree by removing
+, amount other things, epsilon transitions and duds in the grammar. Duds are entries which do not affect the structure of
+the grammar itself. This includes any parentheses (square, flower, or regular) and commas or dots. These characters are 
+omitted during the production of the tree as they function to group expressions and are not needed in an LL1 parser.
+
+Furthermore, the abstract tree omits moving operators such as those defined in 'relOp' since we do not make the assumption that
+these characters are always a representation of a binary operator. For example, the '-' character in 'addOp' is binary, whereas
+that same character is unary in 'Factor'. 
+
+The following figure is the ast representation after running the syntax analyzer on a non-erroneous version of `examples/bubblesort.src`:
+
+![](doc/syntax/bubblesort.png)
+
+### Design Details
+
+The syntax library contains three structures: node, parser, ast. The node structure maintains information about the lexeme and
+the order of the tokens with which they were seen. The parser structure takes in a scanner object and creates nodes bound to the
+tokens output by the scanner. To recover from errors, the parser runs the ['panic mode'](http://www.cs.ecu.edu/karl/5220/spr16/Notes/Bison/error.html)
+sub-routine. The parser's results are stored within the object itself and is accessible publicly. Then, the ast structure is instantiated
+and called to operate on the parser to simplify the structure. We did not merge the ast and parser structures as we felt it would add
+additional cluttering of thoughts and ideas presented in the code. Thus, we sacrifice performance for readability.
+
+![](doc/syntax/design.png)
+
 
 ## Tools
 
@@ -126,6 +271,14 @@ in the re library to implement a simple parser and tokenizer.
 
 The [shunting](https://en.wikipedia.org/wiki/Shunting-yard_algorithm) algorithm, although not necessarily a tool, was very useful throughout the project as it was used to convert
 regular expressions into their posix notation during the construction of the finite automata.
+
+### UCalgary
+
+[Ucalgary's](https://smlweb.cpsc.ucalgary.ca/) grammar tool was used to verify that the generated grammar in `grammar.conf` fulfilled LL1 conditions.
+
+### AtoCC
+
+The [AtoCC](http://www.atocc.de/cgi-bin/atocc/site.cgi?lang=de&site=main) software was used to test and validate that the grammar defined in `grammar.conf` was outputting the proper results.
 
 
 ## Contributors

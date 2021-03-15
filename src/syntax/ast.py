@@ -77,7 +77,7 @@ class AST:
         nodes = {}
         for node in self.bfs():
             label = node.label
-            if label != 'ε' and len(label) == 1:
+            if label != 'ε':
                 label += ' '
             nodes[node.uid] = pydot.Node(node.uid, label=str(label))
             graph.add_node(nodes[node.uid])

@@ -37,7 +37,7 @@ class Parser:
                 while self.lookahead and self.lookahead.type not in series:
                     self.lookahead = next(self.iterator, None)
 
-                location = str(location) + '-' + str(self.lookahead.location)
+                location = str(location) + (('-' + str(self.lookahead.location)) if self.lookahead else '')
 
         else:
             msg = self.top.label
@@ -54,7 +54,7 @@ class Parser:
         self.iterator = iter(reader)
         self.lookahead = next(self.iterator, None)
 
-        while self.stack:
+        while self.stack and self.lookahead:
 
             self.top = self.stack[-1]
             if self.top.label == 'ε':
