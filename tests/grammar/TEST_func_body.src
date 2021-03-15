@@ -1,0 +1,231 @@
+
+
+// no statement
+func no_statement() : float {
+}
+
+// 1-n statements
+func one_statement() : float {
+    i = 2;
+    j = 3;
+    x = i + j;
+}
+
+// if statement
+func if_statement() : float {
+    if ( x + 5 < 2) then {
+        i = 1;
+    } else {
+        i = 3;
+    };
+}
+
+// if: empty then or else blocks
+// the if statement cannot be empty itself because the grammar specifies that the if block is a term
+func if_empty_statement() : float {
+    if ( x + 3 < 2 ) then else;
+}
+
+// while statement
+func while_statement() : float {
+    while (x < 2) {
+        x = x + 1;
+    };
+}
+
+
+// while: empty block
+
+func while_empty_statement() : float {
+    while (x < 2);
+}
+
+// while: 1-n-statement block
+func while_n_statement() : float {
+    x = 0;
+    text = 2;
+    while ( x < 2 ) {
+        text = text + 3;
+        x = x + 1;
+    };
+    text = "123";
+}
+
+// read(<variable>) statement
+// write(<expr>) statement
+func read_var() : float {
+    read(a[1]);
+    write(1 + 2);
+}
+
+// return(<expr>) statement
+// break statement
+// continue statement
+// assignment statement
+func rbc_func(integer x) : integer {
+    y = 1;
+    i = 1;
+
+    if ( x < 0 ) then
+        return (1);
+    else {
+        while ( 1 ) {
+            y = x * y;
+
+            if ( i > x ) then
+                break;
+            else {
+                i = i + 1;
+                continue;
+            };
+        };
+    };
+    return (y);
+}
+
+
+
+// ====== main ====== //
+main {
+}
+/*
+    classes
+    --------------------------------------
+| | no class declaration
+| | class declaration
+| | multiple class declarations
+| | no data member declaration
+| | data member declaration
+| | multiple data member declaration
+| | no member function declaration
+| | member function declaration
+| | multiple member function declaration
+| | no member
+| | no inherited class
+| | one inherited class
+| | multiple inherited classes
+| | private member specifier
+| | public member specifier
+| | absence of member specifier
+
+    functions: definitions
+    --------------------------------------
+| | no main function definition (not allowed)
+| | main function definition
+| | multiple main function definitions (not allowed)
+| | no free function definition
+| | free function definition
+| | multiple free function definitions
+| | no member function definition
+| | member function definition
+| | multiple member function definitions
+| | return type: void
+| | return type: integer
+| | return type: float
+| | return type: string
+| | return type: id
+| | return type: array (not allowed)
+
+
+    functions: formal parameters
+    --------------------------------------
+| | type: integer
+| | type: float
+| | type: string
+| | type: id
+| | type: 1-dim array
+| | type: n-dim array
+| | type: array (with size)
+| | type: array (without size)
+
+    functions: calls
+    --------------------------------------
+| | free function call
+| | member function call
+| | parameters:0
+| | parameters:1
+| | parameters:n
+| | array parameter - 1-dim
+| | array parameter - n-dim
+| | array parameter - with size
+| | array parameter - without size
+| | function call as statement
+| | function call as expression factor
+| | expression as parameter
+
+    variable declaration
+    --------------------------------------
+| | type: integer
+| | type: float
+| | type: string
+| | type: id
+| | type: 1-dim array
+| | type: n-dim array
+| | type: array (with size)
+| | type: array (without size)
+
+    function body: local variable declaration block
+    --------------------------------------
+| | no local variable declarations block
+| | local variable declaration block
+| | multiple local variable declarations block (not allowed)
+| | no variables in block
+| | 1 variable declared in block
+| | multiple variables declared in block
+
+    function body: statements
+    --------------------------------------
+|X| no statement
+|X| 1 statement
+|X| n statements
+|X| if statement
+|X| if: empty then or else blocks
+|X| if: 1-statement then or else blocks
+|X| if: n-statements then or else blocks
+|X| while statement
+|X| while: empty block
+|X| while: 1-statement block
+|X| while: n-statement block
+|X| read(<variable>) statement
+|X| write(<expr>) statement
+|X| return(<expr>) statement
+|X| break statement
+|X| continue statement
+|X| assignment statement
+
+    variable + idnest
+    --------------------------------------
+| | id
+| | id.id
+| | id.id(id)
+| | id(id).id
+| | id(id).id()
+| | id.id[id]
+| | id[id].id
+| | id[id].id[id]
+| | id.id[id][id]
+| | id[id][id].id
+| | id[id][id].id[id][id]
+| | id(id).id[id]
+| | id(id).id[id][id]
+| | expression as array index
+
+    expressions
+    --------------------------------------
+| | single variable
+| | involving addop
+| | involving multop
+| | involving relop
+| | involving addop + multop
+| | involving multop + relop
+| | involving addop + multop + relop
+| | involving parentheses
+| | involving nested parenhteses
+| | involving ternary operator
+| | involving not
+| | involving sign
+| | involving literals
+| | involving variable + idnest
+| | involving function calls
+| | involving all the above in one expression
+*/
