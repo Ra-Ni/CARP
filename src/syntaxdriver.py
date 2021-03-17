@@ -11,7 +11,7 @@ if __name__ == '__main__':
     dir = '_config/'
     out_dir = '../examples/'
     target = Path('polynomial.src')
-
+    target = Path('../tests/grammar/TEST_variable.src')
     out_ast = Path(out_dir + target.stem + '.outast.png')
     out_derivations = Path(out_dir + target.stem + '.outderivations.log')
     out_errors = Path(out_dir + target.stem + '.outerrors.log')

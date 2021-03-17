@@ -30,7 +30,7 @@ class Push(Expr):
         super().__init__('PUSH')
 
     def apply(self, test):
-        test.node_stack.append(Node(test.productions[-1].type))
+        test.node_stack.append(Node(test.productions[-1].lexeme))
 
 
 class Pop(Expr):
