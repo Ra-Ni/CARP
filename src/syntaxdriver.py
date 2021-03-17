@@ -5,6 +5,7 @@ from pathlib import Path
 import tools.ucalgary as ucal
 from syntax import *
 from lex import *
+from syntax.test import Test
 
 if __name__ == '__main__':
     dir = '_config/'
@@ -23,23 +24,23 @@ if __name__ == '__main__':
     non_terminals = ll1.index
 
     fh = logging.FileHandler(out_errors, mode='w', encoding='utf-8')
-    fh.setLevel(logging.ERROR)
+    fh.setLevel(logging.DEBUG)
     logger = logging.getLogger(str(uuid.uuid4()))
-    logger.setLevel(logging.ERROR)
+    logger.setLevel(logging.DEBUG)
     logger.addHandler(fh)
 
     s = scanner(suppress_comments=1)
     s.open(target)
 
-    f = Parser(ll1, follow, terminals, logger)
+    f = Test(ll1, follow, terminals, logger)
     resp, derivations = f.parse(s)
     out_derivations.write_text(' '.join(x.type for x in derivations))
 
-    tree = AST(f.root)
+    tree = AST(f.node_stack[0])
 
     print(resp)
 
-    tree.apply('all')
+    #tree.apply('all')
 
     tree.render(out_ast)
 
