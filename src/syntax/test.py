@@ -149,8 +149,7 @@ class Test:
         self.lookahead = next(self.iterator, None)
 
         while self.stack and self.lookahead:
-            if self.top == 'StatementList':
-                print('here')
+
             self.top = self.stack[-1]
             f = None
             for i in self.ops:
