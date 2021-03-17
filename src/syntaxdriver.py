@@ -10,7 +10,7 @@ from syntax.test import Test
 if __name__ == '__main__':
     dir = '_config/'
     out_dir = '../examples/'
-    target = Path('bubblesort.src')
+    target = Path('polynomial.src')
 
     out_ast = Path(out_dir + target.stem + '.outast.png')
     out_derivations = Path(out_dir + target.stem + '.outderivations.log')

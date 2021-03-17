@@ -149,7 +149,8 @@ class Test:
         self.lookahead = next(self.iterator, None)
 
         while self.stack and self.lookahead:
-
+            if self.top == 'StatementList':
+                print('here')
             self.top = self.stack[-1]
             f = None
             for i in self.ops:
@@ -187,7 +188,20 @@ class Test:
                 else:
                     self._recover()
 
-
+        print(len(self.stack))
+        while self.stack:
+            self.top = self.stack[-1]
+            f = None
+            for i in self.ops:
+                if i.match(self):
+                    f = i
+                    break
+            if f:
+                f.apply(self)
+                self.stack.pop()
+                continue
+            else:
+                break
         return not (self.lookahead or self.stack or self.error), self.productions
 
     def reset(self):
