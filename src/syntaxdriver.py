@@ -20,18 +20,12 @@ if __name__ == '__main__':
     fh = logging.FileHandler(out_errors, mode='w', encoding='utf-8')
     fh.setLevel(logging.DEBUG)
 
-
     s = scanner(suppress_comments=1)
     s.open(target)
 
     f = Test.load(fh)
     resp = f.parse(s)
 
-
-
-    print(resp)
-
-    #tree.apply('all')
-
+    out_derivations.write_text(' '.join([x.type for x in f.productions]))
     f.ast.render(out_ast)
 
