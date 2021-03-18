@@ -1,16 +1,21 @@
 import unittest
+from pathlib import Path
 from typing import Union
 
-from lex import scanner
+from lex import Scanner
+from _config import CONFIG
 
-DEFAULT_CONFIG = '../examples/config'
+CONFIG['LEX_FILE'] = Path('../src/_config/lex.conf')
+CONFIG['LL1_FILE'] = Path('../src/_config/ll1.bak.xz')
+CONFIG['VITALS_FILE'] = Path('../src/_config/vitals.bak.xz')
+CONFIG['GRAMMAR_FILE'] = Path('../src/_config/grammar.conf')
 
 
 class test_scanner(unittest.TestCase):
-    s = scanner(DEFAULT_CONFIG)
+    s = Scanner.load()
 
     def _apply(self, type: str, test: str, expected: Union[int, list]):
-        output = [o.lexeme for o in test_scanner.s.open(test) if o.type == type]
+        output = [o.lexeme for o in test_scanner.s.open_text(test) if o.type == type]
         if isinstance(expected, int):
             output = len(output)
         self.assertEqual(expected, output)
@@ -60,7 +65,7 @@ class test_scanner(unittest.TestCase):
                     """, 1)
 
     def test_noteq(self):
-        self._apply('noteq',
+        self._apply('neq',
                     """
                     < >
                     <
@@ -154,7 +159,7 @@ class test_scanner(unittest.TestCase):
                     """, 3)
 
     def test_coloncolon(self):
-        self._apply('coloncolon',
+        self._apply('sr',
                     """
                     : :
                     :

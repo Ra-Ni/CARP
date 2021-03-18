@@ -1,7 +1,7 @@
-from collections import deque, OrderedDict
+from collections import deque
 import pydot
 
-from syntax.node import Node
+from .node import Node
 
 
 class AST:

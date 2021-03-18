@@ -1,33 +1,39 @@
-import os
-from pathlib import Path
 import re
 
-from lex.token import token
+from _config import CONFIG
+from lex.token import Token
 
 
-class scanner:
+class Scanner:
 
-    def __init__(self, config_dir: str = './_config/', **kwargs):
-        self.tokens = None
-        self.reserved = None
-
-        self.opts = {'suppress_comments': 0}
-        self.opts.update(**kwargs)
-
-        data = Path(config_dir + 'lex.conf').read_text()
-        data += "\nself.tokens = '|'.join('(?P<%s>%s)' % pair for pair in tokens)\nself.reserved = reserved"
-        self.data = exec(data)
+    def __init__(self):
+        self._tokens = None
+        self._reserved = None
+        self._data = None
+        self._opts = None
 
     def open(self, file: str):
         with open(file, 'r') as fstream:
             data = fstream.read()
 
-        self.data = data
+        self._data = data
+        return self
+
+    def open_text(self, text: str):
+        self._data = text
+        return self
+
+    def read(self):
+        for token in self.__iter__():
+            yield token
+
+    def readall(self):
+        return list(self.read())
 
     def __iter__(self):
         line_num = 1
 
-        for tok in re.finditer(self.tokens, self.data):
+        for tok in re.finditer(self._tokens, self._data):
             kind = str(tok.lastgroup)
             value = str(tok.group())
 
@@ -38,14 +44,29 @@ class scanner:
                 line_num += 1
                 continue
 
-            elif kind == 'id' and value in self.reserved:
+            elif kind == 'id' and value in self._reserved:
                 kind = value
 
-            elif 'comment' in kind and self.opts['suppress_comments']:
+            elif 'comment' in kind and self._opts['suppress_comments']:
                 line_num += value.count('\n')
                 continue
 
-            yield token(kind, value, line_num)
+            yield Token(kind, value, line_num)
 
             if 'comment' in kind:
                 line_num += value.count('\n')
+
+    @classmethod
+    def load(cls, src_file: str = None, **kwargs):
+        data = CONFIG['LEX_FILE'].read_text()
+        data += "\nobj._tokens = '|'.join('(?P<%s>%s)' % pair for pair in tokens)\nobj._reserved = reserved"
+        obj = cls()
+        exec(data)
+
+        opts = {'suppress_comments': 0}
+        opts.update(kwargs)
+        obj._opts = opts
+
+        if src_file:
+            obj.open(src_file)
+        return obj

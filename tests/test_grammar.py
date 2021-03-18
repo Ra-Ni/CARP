@@ -1,16 +1,20 @@
 import unittest
+from pathlib import Path
 
-from lex import scanner
+from _config import CONFIG
+from lex import Scanner
 from syntax import Parser
 
-_DIR = '../src/_config/'
-f = Parser.load(config_dir=_DIR)
-s = scanner(config_dir=_DIR, suppress_comments=1)
+CONFIG['LEX_FILE'] = Path('../src/_config/lex.conf')
+CONFIG['LL1_FILE'] = Path('../src/_config/ll1.bak.xz')
+CONFIG['VITALS_FILE'] = Path('../src/_config/vitals.bak.xz')
+CONFIG['GRAMMAR_FILE'] = Path('../src/_config/grammar.conf')
 
+f = Parser.load()
+s = Scanner.load(suppress_comments=1)
 
 def _run(file):
-    path = file
-    s.open(path)
+    s.open(file)
     return f.parse(s)
 
 

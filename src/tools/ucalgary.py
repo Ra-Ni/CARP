@@ -3,6 +3,8 @@ import urllib.parse
 import pandas as pd
 import requests
 
+from _config import CONFIG
+
 
 def query(path, **kwargs):
     if 'grammar' not in kwargs:
@@ -20,7 +22,7 @@ def query(path, **kwargs):
     return response.text
 
 
-def get_ll1(grammar, backup: str):
+def get_ll1(grammar):
     response_html = query('ll1-table.php', grammar=grammar, substs='')
     ll1 = pd.read_html(response_html)[1]
 
@@ -36,11 +38,11 @@ def get_ll1(grammar, backup: str):
         new_series = new_series.replace([r'.*\s*→\s*', '&epsilon'], ['', 'ε'], regex=True)
         ll1.loc[index] = new_series.str.split()
 
-    ll1.to_pickle(backup, compression='xz')
+    ll1.to_pickle(CONFIG['LL1_FILE'], compression='xz')
     return ll1
 
 
-def get_vitals(grammar, backup: str):
+def get_vitals(grammar):
     response_html = query('vital-stats.php', grammar=grammar)
     vitals = pd.read_html(response_html)[2]
 
@@ -57,32 +59,18 @@ def get_vitals(grammar, backup: str):
         dst.mask(dst == '', None, inplace=True)
         dst.where(pd.isnull(dst), dst.str.split(), inplace=True)
 
-    vitals.to_pickle(backup, compression='xz')
+    vitals.to_pickle(CONFIG['VITALS_FILE'], compression='xz')
     return vitals
 
 
-def get(grammar, ll1_backup: str, vitals_backup: str, online: bool = False):
-    if not online:
-        return pd.read_pickle(ll1_backup), pd.read_pickle(vitals_backup)
-
-    return get_ll1(grammar, ll1_backup), get_vitals(grammar, vitals_backup)
-
-
-def load(config_dir: str = './_config/', online: bool = False):
-    grammar = Path(config_dir + 'grammar.conf')
-    ll1_backup = Path(config_dir + 'll1.bak.xz')
-    vitals_backup = Path(config_dir + 'vitals.bak.xz')
-
-    if not online:
-        if not ll1_backup.exists() \
-                or not vitals_backup.exists() \
-                or ll1_backup.stat().st_mtime < grammar.stat().st_mtime:
-            online = True
-
-    if online:
-        with open(grammar, 'r') as fstream:
+def load():
+    if not (CONFIG['LL1_FILE'].exists() and
+            CONFIG['VITALS_FILE'].exists() and
+            CONFIG['LL1_FILE'].stat().st_mtime >= CONFIG['GRAMMAR_FILE'].stat().st_mtime):
+        with open(CONFIG['GRAMMAR_FILE'], 'r') as fstream:
             grammar = urllib.parse.quote_plus(fstream.read())
 
-    ll1, vitals = get(grammar, ll1_backup, vitals_backup, online)
+        return get_ll1(grammar), get_vitals(grammar)
 
-    return ll1, vitals
+    else:
+        return pd.read_pickle(CONFIG['LL1_FILE']), pd.read_pickle(CONFIG['VITALS_FILE'])

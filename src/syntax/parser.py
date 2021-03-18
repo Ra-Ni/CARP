@@ -1,9 +1,10 @@
 import uuid
-
-from syntax import Node, AST
-from lex import scanner
-import tools.ucalgary as ucal
 import logging
+
+from _config import CONFIG
+from syntax import Node, AST
+from lex import Scanner
+import tools.ucalgary as ucal
 
 
 def _new(test):
@@ -56,21 +57,21 @@ _OPS = {
 
 
 class Parser:
-    def __init__(self, table, follow, terminals, non_terminals, ops, logger):
-        self._table = table
-        self._follow = follow
-        self._terminals = terminals
-        self._non_terminals = non_terminals
-        self._log = logger
-        self._ops = ops
+    def __init__(self):
+        self._table = None
+        self._follow = None
+        self._terminals = None
+        self._non_terminals = None
+        self._log = None
+        self._ops = None
 
         self._error = False
-        self.top = 'Start'
-        self._stack = [self.top]
-        self.nodes = []
         self._lookahead = None
         self._iterator = None
+        self._stack = [CONFIG['LL1_START']]
 
+        self.top = CONFIG['LL1_START']
+        self.nodes = []
         self.productions = []
         self.ast = None
 
@@ -102,7 +103,7 @@ class Parser:
 
         self._log.error('[{}]{}::Invalid Syntax {} not in {}'.format(location, 'ERROR', label, msg))
 
-    def parse(self, reader: scanner):
+    def parse(self, reader: Scanner):
         self.reset()
         self._iterator = iter(reader)
         self._lookahead = next(self._iterator, None)
@@ -131,8 +132,10 @@ class Parser:
                 non_terminal = self._table.at[self.top, self._lookahead.type]
 
                 if non_terminal:
-                    self._log.debug('[{}]{}::{} → {}'.format(self._lookahead.location, 'INFO',
-                                                             self.top, ' '.join(non_terminal)))
+                    self._log.debug('[{}]{}::{} → {}'.format(self._lookahead.location,
+                                                             'INFO',
+                                                             self.top,
+                                                             ' '.join(non_terminal)))
                     self._stack.pop()
                     if ['ε'] != non_terminal:
                         self._stack.extend(non_terminal[::-1])
@@ -157,18 +160,18 @@ class Parser:
 
     def reset(self):
         self._error = False
-        self.top = 'Start'
-        self._stack = [self.top]
-        self.nodes = []
         self._lookahead = None
         self._iterator = None
+        self._stack = [CONFIG['LL1_START']]
 
+        self.top = CONFIG['LL1_START']
+        self.nodes = []
         self.productions = []
         self.ast = None
 
     @classmethod
-    def load(cls, file_handler: logging.FileHandler = None, config_dir: str = './_config/'):
-        ll1, vitals = ucal.load(config_dir=config_dir, online=False)
+    def load(cls, file_handler: logging.FileHandler = None):
+        ll1, vitals = ucal.load()
         follow = vitals['follow set']
         terminals = ll1.columns
         non_terminals = ll1.index
@@ -184,4 +187,12 @@ class Parser:
             logger.addHandler(file_handler)
             logger.setLevel(file_handler.level)
 
-        return cls(ll1, follow, terminals, non_terminals, ops, logger)
+        obj = cls()
+        obj._table = ll1
+        obj._follow = follow
+        obj._terminals = terminals
+        obj._non_terminals = non_terminals
+        obj._ops = ops
+        obj._log = logger
+
+        return obj

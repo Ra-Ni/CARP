@@ -1,4 +1,4 @@
 from .scanner import *
 from .token import *
 
-__all__ = ['token', 'scanner']
+__all__ = ['Token', 'Scanner']

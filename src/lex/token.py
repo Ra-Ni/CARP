@@ -1,7 +1,5 @@
-from typing import Union
 
-
-class token:
+class Token:
     def __init__(self, type: str, value: str, line: int):
         self.type = type
         self.lexeme = value

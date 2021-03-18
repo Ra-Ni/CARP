@@ -97,13 +97,13 @@ notation and produce the corresponding minimum DFA in the automata library. The 
 sub finite state machines. The figures below show the DFA representations of the 'while' reserved word, the float, and the
 entire lexical specification respectively. Other images may be viewed in the 'img' folder.
 
-![](doc/assets/while.png "Minimum DFA representation of a reserved word 'while'" )
+![](doc/lex/while.png "Minimum DFA representation of a reserved word 'while'" )
 
 
-![](doc/assets/float.png "Minimum DFA representation of a float")
+![](doc/lex/float.png "Minimum DFA representation of a float")
 
 
-![](doc/assets/total.png "Minimum DFA representation of every token in the lexical specification")
+![](doc/lex/total.png "Minimum DFA representation of every token in the lexical specification")
 
 
 The regular expressions for operators and reserved words have been omitted in this document since they are trivial.
@@ -119,7 +119,7 @@ The file is assumed to be correct in structure and logic. It is then executed us
 file is a fragment of a program, whose purpose is to allow customizations to the current specifications.
 
 The follow figure shows the relation between each object:
-![](doc/assets/design.png)
+![](doc/lex/design.png)
 
 
 ## Syntax Analyzer

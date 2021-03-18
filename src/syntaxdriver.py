@@ -2,20 +2,22 @@ import logging
 import sys
 from pathlib import Path
 
+
 from syntax import *
 from lex import *
+
+OUT_AST = '.outast.png'
+OUT_ERRORS = '.outerrors.log'
+OUT_DERIVATIONS = '.outderivations.log'
+EXAMPLE = '../examples/bubblesort.src'
 
 
 def help(exception: Exception = None):
     print(
-        """syntaxdriver.py <file> [config_directory]
+        """syntaxdriver.py <file>
 
     <file>:
-        Source code file ending with the extension .src
-    [config]:
-        Segment of program containing the tokens and regular expressions
-
-        Must contain grammar.conf file within the config folder\n""")
+        Source code file ending with the extension .src\n""")
 
     if exception:
         print(exception)
@@ -24,22 +26,18 @@ def help(exception: Exception = None):
 
 
 if __name__ == '__main__':
-    args = len(sys.argv)
-    path = Path(sys.argv[1] if args >= 2 else '../examples/bubblesort.src')
-    config = sys.argv[2] if args >= 3 else './_config/'
+    path = Path(sys.argv[1] if len(sys.argv) >= 2 else EXAMPLE)
 
     try:
         out = str(path.parent) + '\\' + str(path.stem)
-        out_ast = Path(out + '.outast.png')
-        out_errors = Path(out + '.outerrors.log')
-        out_derivations = Path(out + '.outderivations.log')
+        out_ast = Path(out + OUT_AST)
+        out_errors = Path(out + OUT_ERRORS)
+        out_derivations = Path(out + OUT_DERIVATIONS)
 
         fh = logging.FileHandler(out_errors, mode='w', encoding='utf-8')
         fh.setLevel(logging.DEBUG)
 
-        s = scanner(suppress_comments=1)
-        s.open(path)
-
+        s = Scanner.load(src_file=path, suppress_comments=1)
         f = Parser.load(fh)
         resp = f.parse(s)
         out_derivations.write_text(' '.join([x.type for x in f.productions]))

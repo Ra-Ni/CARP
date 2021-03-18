@@ -1,21 +1,20 @@
 import os
-from collections import deque
 import sys
+from pathlib import Path
+
 from lex import *
+
+EXAMPLE = '../examples/lexnegativegrading.src'
+OUT_ERRORS = '.outlexerrors'
+OUT_DERIVATIONS = '.outlextokens'
 
 
 def help(exception: Exception = None):
     print(
-        """lexdriver.py <file> [config]
+        """lexdriver.py [file]
 
-    <file>:
-        Source code file ending with the extension .src
-    [config]:
-        Segment of program containing the tokens and regular expressions
-        
-        Must contain variables "reserved" and "tokens", where:
-            type(reserved) -> list(str(phrase))
-            type(tokens) -> list(tuple(str(id), str(regex))\n""")
+    [file]:
+        Source code file ending with the extension .src\n""")
 
     if exception:
         print(exception)
@@ -24,36 +23,33 @@ def help(exception: Exception = None):
 
 
 if __name__ == '__main__':
-    args = len(sys.argv)
     prev_line = 1
+    path = Path(sys.argv[1] if len(sys.argv) >= 2 else EXAMPLE)
 
-    path = sys.argv[1] if args >= 2 else '../examples/lexnegativegrading.src'
-    config = sys.argv[2] if args >= 3 else './_config/'
-    lex_errors = ''
     try:
+        out = str(path.parent) + '\\' + str(path.stem)
+        output_path, _ = os.path.splitext(path)
+        out_errors = Path(out + OUT_ERRORS)
+        out_derivations = Path(out + OUT_DERIVATIONS)
+
         with open(path, 'r') as fstream:
             data = fstream.read()
 
-        output_path, _ = os.path.splitext(path)
-        s = scanner()
-        s.open(path)
-        tokens = deque(list(iter(s)))
-        lex_errors = f'{output_path}.outlexerrors'
-        lex_tokens = f'{output_path}.outlextokens'
+        s = Scanner.load(src_file=path)
 
-        with open(lex_errors, 'w') as errors:
-            with open(lex_tokens, 'w') as output:
-                while tokens:
-                    tok = tokens.popleft()
-                    fill_char = ' ' if prev_line == tok.location else '\n'
-                    prev_line = tok.location
+        with open(out_errors, 'w') as errors:
+            with open(out_derivations, 'w') as output:
+                for token in iter(s):
 
-                    if tok.type == 'invalidchar':
+                    fill_char = ' ' if prev_line == token.location else '\n'
+                    prev_line = token.location
+
+                    if token.type == 'invalidchar':
                         errors.write('Lexical error: Invalid character: "{}": line {}.\n'
-                                     .format(tok.lexeme, tok.location))
+                                     .format(token.lexeme, token.location))
 
-                    output.write(fill_char + str(tok))
+                    output.write(fill_char + str(token))
 
-        print(f'Results stored in:\n\t{lex_tokens}\n\t{lex_errors}')
+        print(f'Results stored in:\n\t{out_derivations}\n\t{out_errors}')
     except Exception as err:
         help(err)
