@@ -12,7 +12,7 @@ def _new(test):
 
 
 def _push(test):
-    test.nodes.append(Node(test.productions[-1].lexeme))
+    test.nodes.append(Node(test.production.lexeme))
 
 
 def _pop(test):
@@ -62,7 +62,8 @@ class Parser:
         self._follow = None
         self._terminals = None
         self._non_terminals = None
-        self._log = None
+        self._error_logger = None
+        self._derivations_logger = None
         self._ops = None
 
         self._error = False
@@ -70,9 +71,9 @@ class Parser:
         self._iterator = None
         self._stack = [CONFIG['LL1_START']]
 
-        self.top = CONFIG['LL1_START']
+        self.top = self._stack[0]
         self.nodes = []
-        self.productions = []
+        self.production = None
         self.ast = None
 
     def _recover(self):
@@ -101,7 +102,7 @@ class Parser:
 
             self._stack.pop()
 
-        self._log.error('[{}]{}::Invalid Syntax {} not in {}'.format(location, 'ERROR', label, msg))
+        self._error_logger.error('[{}]{}::Invalid Syntax {} not in {}'.format(location, 'ERROR', label, msg))
 
     def parse(self, reader: Scanner):
         self.reset()
@@ -109,6 +110,7 @@ class Parser:
         self._lookahead = next(self._iterator, None)
 
         while self._stack and self._lookahead:
+
             self.top = self._stack[-1]
 
             if self.top in self._ops:
@@ -120,7 +122,8 @@ class Parser:
 
             elif self.top in self._terminals:
                 if self.top == self._lookahead.type:
-                    self.productions.append(self._lookahead)
+                    self.production = self._lookahead
+                    self._derivations_logger.info(self._lookahead.type)
                     self._stack.pop()
 
                     self._lookahead = next(self._iterator, None)
@@ -132,10 +135,10 @@ class Parser:
                 non_terminal = self._table.at[self.top, self._lookahead.type]
 
                 if non_terminal:
-                    self._log.debug('[{}]{}::{} → {}'.format(self._lookahead.location,
-                                                             'INFO',
-                                                             self.top,
-                                                             ' '.join(non_terminal)))
+                    self._error_logger.debug('[{}]{}::{} → {}'.format(self._lookahead.location,
+                                                                      'INFO',
+                                                                      self.top,
+                                                                      ' '.join(non_terminal)))
                     self._stack.pop()
                     if ['ε'] != non_terminal:
                         self._stack.extend(non_terminal[::-1])
@@ -164,13 +167,13 @@ class Parser:
         self._iterator = None
         self._stack = [CONFIG['LL1_START']]
 
-        self.top = CONFIG['LL1_START']
+        self.top = self._stack[0]
         self.nodes = []
-        self.productions = []
+        self.production = None
         self.ast = None
 
     @classmethod
-    def load(cls, file_handler: logging.FileHandler = None):
+    def load(cls, error_handler: logging.FileHandler = None, derivations_handler: logging.FileHandler = None):
         ll1, vitals = ucal.load()
         follow = vitals['follow set']
         terminals = ll1.columns
@@ -180,12 +183,15 @@ class Parser:
         ops.update([(x, _OPS['NEW']) for x in filter(lambda x: 'NEW' in x, non_terminals.to_list())])
         ops.pop('NEW')
 
-        logger = logging.getLogger(str(uuid.uuid4()))
-        logger.setLevel(logging.CRITICAL)
+        error_logger = logging.getLogger(str(uuid.uuid4()))
+        derivations_logger = logging.getLogger(str(uuid.uuid4()))
 
-        if file_handler:
-            logger.addHandler(file_handler)
-            logger.setLevel(file_handler.level)
+        for logger, handler in [(error_logger, error_handler), (derivations_logger, derivations_handler)]:
+            if handler:
+                logger.addHandler(handler)
+                logger.setLevel(handler.level)
+            else:
+                logger.setLevel(logging.CRITICAL)
 
         obj = cls()
         obj._table = ll1
@@ -193,6 +199,7 @@ class Parser:
         obj._terminals = terminals
         obj._non_terminals = non_terminals
         obj._ops = ops
-        obj._log = logger
+        obj._error_logger = error_logger
+        obj._derivations_logger = derivations_logger
 
         return obj

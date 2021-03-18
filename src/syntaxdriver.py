@@ -9,7 +9,7 @@ from lex import *
 OUT_AST = '.outast.png'
 OUT_ERRORS = '.outerrors.log'
 OUT_DERIVATIONS = '.outderivations.log'
-EXAMPLE = '../examples/bubblesort.src'
+EXAMPLE = '../examples/polynomial.src'
 
 
 def help(exception: Exception = None):
@@ -34,13 +34,16 @@ if __name__ == '__main__':
         out_errors = Path(out + OUT_ERRORS)
         out_derivations = Path(out + OUT_DERIVATIONS)
 
-        fh = logging.FileHandler(out_errors, mode='w', encoding='utf-8')
-        fh.setLevel(logging.DEBUG)
+        errors = logging.FileHandler(out_errors, mode='w', encoding='utf-8', delay=True)
+        errors.setLevel(logging.DEBUG)
+
+        derivations = logging.FileHandler(out_derivations, mode='w', encoding='utf-8', delay=True)
+        derivations.setLevel(logging.INFO)
+        derivations.terminator = ' '
 
         s = Scanner.load(src_file=path, suppress_comments=1)
-        f = Parser.load(fh)
+        f = Parser.load(errors, derivations)
         resp = f.parse(s)
-        out_derivations.write_text(' '.join([x.type for x in f.productions]))
         f.ast.render(out_ast)
         print('The src "{}" is {}valid.'.format(str(path), '' if resp else 'not '))
     except Exception as err:

@@ -16,22 +16,12 @@ class Node:
         return str(self._uid)
 
     def adopt(self, *children) -> None:
-
         for child in children:
             node = child
             if isinstance(child, str):
                 node = Node(child)
             self.children.append(node)
             node.parent = self
-
-    def remove(self):
-        index = self.parent.children.index(self)
-        left = self.parent.children[:index]
-        right = self.parent.children[index + 1:]
-        middle = self.children
-        self.parent.children = left + middle + right
-        for child in self.children:
-            child.parent = self.parent
 
     def __hash__(self):
         return self._uid
