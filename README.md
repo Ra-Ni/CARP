@@ -132,34 +132,17 @@ The follow figure shows the relation between each object:
 vim grammar.conf
 ```
 
-2. Add, edit, or remove entries into the file:
-```shell
-Expr -> ArithExpr Expr2 .
-Expr2 -> RelOp ArithExpr .
-```
+2. Add, edit, or remove entries into the file
 
-**Note**: Terminals are represented in lower case, while non-terminals start with an upper case. Refer to [ucalgary](https://smlweb.cpsc.ucalgary.ca/) for more information on the format. 
-
-Adding an extra character (or number) in non-terminal expressions flattens the entire expression as if it were a continuation of the original statement.
-
-For example, the previous expression's tree structure would normally be represented as:
 
 ```shell
-Expr
-|---- ArithExpr
-|---- Expr2
-       |---- RelOp
-       |---- ArithExpr
- 
-```
+Start -> Prog .
+Prog -> NEW_Prog ClassList UNARY FuncDefList UNARY main FuncBody UNARY .
 
-However, LexMe merges non-terminal names that have a difference of one character at the end:
-
-```shell
-Expr
-|---- ArithExpr
-|---- RelOp
-|---- ArithExpr
+ClassList -> NEW_ClassList ClassList2 .
+ClassList2 -> ClassDecl UNARY ClassList2
+	| .
+ClassDecl -> class PUSH id PUSH UNARY InheritList UNARY lcurbr MembList UNARY rcurbr semi .
 ```
 
 ### Command Line Arguments
@@ -230,27 +213,62 @@ The following rules are supported by default in LexMe:
 
 ### Abstract Syntax Tree (AST)
 
-The syntax library produces a concrete tree, which is then converted to an abstract tree by removing
-, amount other things, epsilon transitions and duds in the grammar. Duds are entries which do not affect the structure of
-the grammar itself. This includes any parentheses (square, flower, or regular) and commas or dots. These characters are 
-omitted during the production of the tree as they function to group expressions and are not needed in an LL1 parser.
+The syntax library contains operators which are defined within the library itself. The user can simply edit the order of the operators in
+```_config/grammar.conf``` if they wish to change the behavior of the program for the production of the abstract syntax tree. Some operators include:
 
-Furthermore, the abstract tree omits moving operators such as those defined in 'relOp' since we do not make the assumption that
-these characters are always a representation of a binary operator. For example, the '-' character in 'addOp' is binary, whereas
-that same character is unary in 'Factor'. 
+1. **PUSH**: Creates a node labelled by the previous terminal and pushes it onto the stack:
+```shell
+Type -> integer PUSH
+	| float PUSH
+	| string PUSH
+	| id PUSH .
+```
 
-The following figure is the ast representation after running the syntax analyzer on a non-erroneous version of `examples/bubblesort.src`:
+2. **UNARY**: Pops two nodes from the stack and makes the second popped node the parent of the other. Pushes it back onto the stack:
+```shell
+Factor -> not PUSH Factor UNARY .
+```
+
+3. **BIN**: Pops three nodes from the stack and makes the middle node the parent of the others. Pushes it back onto the stack:
+```shell
+Example -> 1 PUSH assign PUSH 2 PUSH BIN .
+```
+
+4. **NOP**: Pushes an ε (epsilon) labelled node onto the stack:
+```shell
+Intnum -> intnum PUSH
+	| NOP .
+```
+
+5. **NEW_X**: Pushes a new node labelled 'X' onto the stack:
+```shell
+ClassList -> NEW_ClassList ClassList2 .
+```
+
+6. **CHK**: If the node at the top of the stack has no children, re-labels the node as ε (epsilon):
+```shell
+DimList -> NEW_DimList DimList2 CHK .
+```
+
+Using the default rules in the grammar configuration file, we can construct a tree for a non-erroneous versions of ```examples/polynomial.src``` and
+```examples/bubblesort.src```: 
+
+![](doc/syntax/polynomial.png)
 
 ![](doc/syntax/bubblesort.png)
 
 ### Design Details
 
-The syntax library contains three structures: node, parser, ast. The node structure maintains information about the lexeme and
-the order of the tokens with which they were seen. The parser structure takes in a scanner object and creates nodes bound to the
-tokens output by the scanner. To recover from errors, the parser runs the ['panic mode'](http://www.cs.ecu.edu/karl/5220/spr16/Notes/Bison/error.html)
-sub-routine. The parser's results are stored within the object itself and is accessible publicly. Then, the ast structure is instantiated
-and called to operate on the parser to simplify the structure. We did not merge the ast and parser structures as we felt it would add
-additional cluttering of thoughts and ideas presented in the code. Thus, we sacrifice performance for readability.
+The syntax library uses objects defined in the scanner library to produce an abstract tree. It relies on the rules defined in
+the configuration file (see ```/_config/grammar.conf```). The parsing table from the grammar is either constructed during run-time
+or loaded from disk. This decision is made by comparing the modification times of the configuration file and the compressed table files.
+If the modification time is later, then the compressed table files must be updated. A query is sent to Ucalgary's website containing the grammar
+as the payload. The response is then parsed using Pandas and the table is stored locally for future use. When modifying the grammar, it is important to note
+that the modifications must adhere to the rules defined by the Ucalgary online tool (otherwise it will result in errors).
+
+The parser object generates an abstract syntax tree only if such a tree can be constructed from the stack. Otherwise, the tree is simply
+empty.  
+
 
 ![](doc/syntax/design.png)
 

@@ -1,10 +1,10 @@
 import unittest
 
 from lex import scanner
-from syntax.test import Test
+from syntax import Parser
 
 _DIR = '../src/_config/'
-f = Test.load(config_dir=_DIR)
+f = Parser.load(config_dir=_DIR)
 s = scanner(config_dir=_DIR, suppress_comments=1)
 
 
