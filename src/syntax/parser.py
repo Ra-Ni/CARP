@@ -46,7 +46,7 @@ class Parser:
 
             self.stack.pop()
 
-        self.log.error('[{}]{}::Invalid Syntax {} not in {}'.format(location, 'ERROR', label, msg))
+        self.log._error('[{}]{}::Invalid Syntax {} not in {}'.format(location, 'ERROR', label, msg))
 
     def parse(self, reader: scanner):
 
