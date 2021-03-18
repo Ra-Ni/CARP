@@ -1,4 +1,4 @@
-from syntax import Node
+from syntax import Node, AST
 from lex import scanner
 
 
@@ -53,18 +53,6 @@ class Unary(Expr):
         test.node_stack.append(first)
 
 
-class IUnary(Expr):
-    def __init__(self):
-        super().__init__('UNARY')
-
-    def apply(self, test):
-        second = test.node_stack.pop()
-        first = test.node_stack.pop()
-
-        second.adopt(first)
-        test.node_stack.append(second)
-
-
 class Chk(Expr):
     def __init__(self):
         super().__init__('CHK')
@@ -109,6 +97,7 @@ class Test:
         self.productions = []
 
         self.top = 'Start'
+        self.ast = None
 
         self.stack = [self.top]
         self.node_stack = []
@@ -187,7 +176,7 @@ class Test:
                 else:
                     self._recover()
 
-        print(len(self.stack))
+
         while self.stack:
             self.top = self.stack[-1]
             f = None
@@ -201,6 +190,9 @@ class Test:
                 continue
             else:
                 break
+
+        if self.node_stack:
+            self.ast = AST(self.node_stack.pop())
         return not (self.lookahead or self.stack or self.error), self.productions
 
     def reset(self):
@@ -211,3 +203,4 @@ class Test:
         self.stack = [self.top]
         self.node_stack = []
         self.error = False
+        self.ast = None
