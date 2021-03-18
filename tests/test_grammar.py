@@ -1,29 +1,17 @@
-import logging
 import unittest
-from pathlib import Path
 
 from lex import scanner
-from syntax import Parser, uuid
-import tools.ucalgary as ucal
+from syntax import Parser
 
 _DIR = '../src/_config/'
-ll1, vitals = ucal.load(config_dir=_DIR, online=False)
-first = vitals['first set']
-follow = vitals['follow set']
-terminals = ll1.columns
-non_terminals = ll1.index
-
-logger = logging.getLogger(str(uuid.uuid4()))
-logger.setLevel(logging.CRITICAL)
+f = Parser.load(config_dir=_DIR)
 s = scanner(config_dir=_DIR, suppress_comments=1)
 
 
 def _run(file):
     path = file
     s.open(path)
-    f = Parser(ll1, follow, terminals, logger)
-    resp, _ = f.parse(s)
-    return resp
+    return f.parse(s)
 
 
 class test_scanner(unittest.TestCase):
