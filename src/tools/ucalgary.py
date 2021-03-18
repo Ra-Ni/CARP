@@ -84,6 +84,5 @@ def load(config_dir: str = './_config/', online: bool = False):
             grammar = urllib.parse.quote_plus(fstream.read())
 
     ll1, vitals = get(grammar, ll1_backup, vitals_backup, online)
-    ll1.to_csv('sigh')
 
     return ll1, vitals
