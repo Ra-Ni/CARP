@@ -7,42 +7,46 @@ from lex import Scanner
 import tools.ucalgary as ucal
 
 
-def _new(test):
-    test.nodes.append(Node(test.top[4:]))
+def _new(parser):
+    parser.nodes.append(Node(parser.top[4:]))
 
 
-def _push(test):
-    test.nodes.append(Node(test.production.lexeme))
+def _push(parser):
+    parser.nodes.append(Node(parser.last_production.lexeme))
 
 
-def _pop(test):
-    test.nodes.pop()
+def _pop(parser):
+    parser.nodes.pop()
 
 
-def _unary(test):
-    second = test.nodes.pop()
-    first = test.nodes.pop()
+def _unary(parser):
+    second = parser.nodes.pop()
+    first = parser.nodes.pop()
 
     first.adopt(second)
-    test.nodes.append(first)
+    parser.nodes.append(first)
 
 
-def _chk(test):
-    if not test.nodes[-1].children:
-        test.nodes[-1].label = 'ε'
+def _chk(parser):
+    if not parser.nodes[-1].children:
+        parser.nodes[-1].label = 'ε'
 
 
-def _nop(test):
-    test.nodes.append(Node('ε'))
+def _nop(parser):
+    parser.nodes.append(Node('ε'))
 
 
-def _bin(test):
-    second = test.nodes.pop()
-    op = test.nodes.pop()
-    first = test.nodes.pop()
+def _bin(parser):
+    second = parser.nodes.pop()
+    op = parser.nodes.pop()
+    first = parser.nodes.pop()
 
     op.adopt(first, second)
-    test.nodes.append(op)
+    parser.nodes.append(op)
+
+
+def _epsilon(parser):
+    pass
 
 
 _OPS = {
@@ -52,7 +56,8 @@ _OPS = {
     'UNARY': _unary,
     'CHK': _chk,
     'NOP': _nop,
-    'BIN': _bin
+    'BIN': _bin,
+    'ε': _epsilon
 }
 
 
@@ -73,7 +78,7 @@ class Parser:
 
         self.top = self._stack[0]
         self.nodes = []
-        self.production = None
+        self.last_production = None
         self.ast = None
 
     def _recover(self):
@@ -102,7 +107,7 @@ class Parser:
 
             self._stack.pop()
 
-        self._error_logger.error('[{}]{}::Invalid Syntax {} not in {}'.format(location, 'ERROR', label, msg))
+        self._error_logger.error(f'[{location}]ERROR::Invalid Syntax {label} not in {msg}')
 
     def parse(self, reader: Scanner):
         self.reset()
@@ -117,28 +122,19 @@ class Parser:
                 self._ops[self.top](self)
                 self._stack.pop()
 
-            elif self.top == 'ε':
-                self._stack.pop()
-
             elif self.top in self._terminals:
                 if self.top == self._lookahead.type:
-                    self.production = self._lookahead
+                    self.last_production = self._lookahead
                     self._derivations_logger.info(self._lookahead.type)
                     self._stack.pop()
-
                     self._lookahead = next(self._iterator, None)
                 else:
                     self._recover()
 
             elif self.top in self._non_terminals:
-
                 non_terminal = self._table.at[self.top, self._lookahead.type]
-
                 if non_terminal:
-                    self._error_logger.debug('[{}]{}::{} → {}'.format(self._lookahead.location,
-                                                                      'INFO',
-                                                                      self.top,
-                                                                      ' '.join(non_terminal)))
+                    self._error_logger.debug(f'[{self._lookahead.location}]INFO::{self.top} → {" ".join(non_terminal)}')
                     self._stack.pop()
                     if ['ε'] != non_terminal:
                         self._stack.extend(non_terminal[::-1])
@@ -148,13 +144,8 @@ class Parser:
             else:
                 raise ValueError(f'Value {self.top} not defined in table or operations')
 
-        while self._stack:
-            self.top = self._stack[-1]
-            if self.top in self._ops:
-                self._ops[self.top](self)
-                self._stack.pop()
-            else:
-                break
+        while self._stack and self._stack[-1] in self._ops:
+            self._ops[self._stack.pop()](self)
 
         if self.nodes:
             self.ast = AST(self.nodes.pop())
@@ -169,7 +160,7 @@ class Parser:
 
         self.top = self._stack[0]
         self.nodes = []
-        self.production = None
+        self.last_production = None
         self.ast = None
 
     @classmethod

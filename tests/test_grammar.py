@@ -1,3 +1,4 @@
+import logging
 import unittest
 from pathlib import Path
 
@@ -15,7 +16,14 @@ s = Scanner.load(suppress_comments=1)
 
 def _run(file):
     s.open(file)
-    return f.parse(s)
+    resp = f.parse(s)
+    """
+    path = Path(file)
+    path = str(path.parent) + '\\out\\' + str(path.stem) + '.png'
+    if f.ast:
+        f.ast.render(path)
+    """
+    return resp
 
 
 class test_scanner(unittest.TestCase):
