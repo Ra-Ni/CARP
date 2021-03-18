@@ -3,4 +3,3 @@ examples
 doc/assets
 src/lex/__pycache__
 /tools/
-syntax/backup.py
