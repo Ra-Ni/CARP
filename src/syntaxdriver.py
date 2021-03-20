@@ -35,7 +35,7 @@ if __name__ == '__main__':
         out_derivations = Path(out + OUT_DERIVATIONS)
 
         errors = logging.FileHandler(out_errors, mode='w', encoding='utf-8', delay=True)
-        errors.setLevel(logging.DEBUG)
+        errors.setLevel(logging.ERROR)
 
         derivations = logging.FileHandler(out_derivations, mode='w', encoding='utf-8', delay=True)
         derivations.setLevel(logging.INFO)
