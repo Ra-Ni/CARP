@@ -1,5 +1,4 @@
 .idea
-examples
 doc/lex
 src/lex/__pycache__
 /tools/
