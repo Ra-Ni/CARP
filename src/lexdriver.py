@@ -11,9 +11,9 @@ OUT_DERIVATIONS = '.outlextokens'
 
 def help(exception: Exception = None):
     print(
-        """lexdriver.py [file]
+        """lexdriver.py <file>
 
-    [file]:
+    <file>:
         Source code file ending with the extension .src\n""")
 
     if exception:

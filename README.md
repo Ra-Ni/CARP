@@ -39,16 +39,10 @@ reserved = {'hello',
 ### Command Line Arguments
 
 ```shell
-lexdriver.py <file> [config]
+lexdriver.py <file>
 
     <file>:
         Source code file ending with the extension .src
-    [config]:
-        Segment of program containing the tokens and regular expressions
-        
-        Must contain variables "reserved" and "tokens", where:
-            type(reserved) -> list(str(phrase))
-            type(tokens) -> list(tuple(str(id), str(regex))
 ```
 
 ### Regular Expressions
@@ -147,12 +141,11 @@ ClassDecl -> class PUSH id PUSH UNARY InheritList UNARY lcurbr MembList UNARY rc
 
 ### Command Line Arguments
 
-The directories have been hard coded in the main function for testing purposes. A future version of the driver will be provided with this feature.
-
-For now, use:
-
 ```shell
-syntaxdriver.py
+syntaxdriver.py <file>
+
+    <file>:
+        Source code file ending with the extension .src
 ```
 
 ### Rules and Formats
