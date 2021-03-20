@@ -4,7 +4,7 @@ from pathlib import Path
 
 from lex import *
 
-EXAMPLE = '../examples/lexnegativegrading.src'
+EXAMPLE = '../examples/lex/lexnegativegrading.src'
 OUT_ERRORS = '.outlexerrors'
 OUT_DERIVATIONS = '.outlextokens'
 
