@@ -23,6 +23,7 @@ class AST:
             label = node.label
             if label != 'ε':
                 label += ' '
+
             nodes[node.uid] = pydot.Node(node.uid, label=str(label))
             graph.add_node(nodes[node.uid])
 

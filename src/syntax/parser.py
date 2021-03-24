@@ -15,8 +15,19 @@ def _push(parser):
     parser.nodes.append(Node(parser.last_production.lexeme))
 
 
-def _pop(parser):
-    parser.nodes.pop()
+def _iunary(parser):
+    second = parser.nodes.pop()
+    first = parser.nodes.pop()
+
+    second.adopt(first)
+    parser.nodes.append(second)
+
+
+def _epop(parser):
+    parent = parser.nodes[-1]
+    child = parent.children[-1]
+    if child.label == 'ε':
+        parent.children.pop()
 
 
 def _unary(parser):
@@ -32,8 +43,25 @@ def _chk(parser):
         parser.nodes[-1].label = 'ε'
 
 
+def _chk_merge(parser):
+    parent = parser.nodes[-1]
+    children = parent.children
+    if len(children) == 1:
+        child = children[0]
+        parser.nodes.pop()
+        child.parent = None
+        parser.nodes.append(child)
+
+
 def _nop(parser):
     parser.nodes.append(Node('ε'))
+
+
+def _cond_unary(parser):
+    if parser.nodes[-1].label == 'ε':
+        parser.nodes.pop()
+    else:
+        _unary(parser)
 
 
 def _bin(parser):
@@ -45,6 +73,11 @@ def _bin(parser):
     parser.nodes.append(op)
 
 
+def _shift(parser):
+    node = parser.nodes[-1]
+    node.children = [node.children[-1]] + node.children[:-1]
+
+
 def _epsilon(parser):
     pass
 
@@ -52,11 +85,15 @@ def _epsilon(parser):
 _OPS = {
     'NEW': _new,
     'PUSH': _push,
-    'POP': _pop,
+    'EPOP': _epop,
     'UNARY': _unary,
     'CHK': _chk,
     'NOP': _nop,
     'BIN': _bin,
+    'COND_UNARY': _cond_unary,
+    'IUNARY': _iunary,
+    'CHK_MERGE': _chk_merge,
+    'SHIFT': _shift,
     'ε': _epsilon
 }
 

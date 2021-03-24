@@ -73,3 +73,19 @@ import pandas as pd
 
 from syntax import AST
 
+
+class SymbolTable:
+    def __init__(self):
+        pass
+
+    def insert(self, record):
+        pass
+
+    def search(self, record):
+        pass
+
+    def print(self):
+        pass
+
+    def delete(self, record):
+        pass

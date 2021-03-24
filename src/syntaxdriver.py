@@ -9,7 +9,7 @@ from lex import *
 OUT_AST = '.outast.png'
 OUT_ERRORS = '.outerrors.log'
 OUT_DERIVATIONS = '.outderivations.log'
-EXAMPLE = '../examples/syntax/polynomial.src'
+EXAMPLE = '../examples/syntax/polynomial_correct.src'
 
 
 def help(exception: Exception = None):

@@ -1,4 +1,4 @@
-func mult() : integer [] {}
+func mult() : integer[] {}
 
 main {}
 
