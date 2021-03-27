@@ -64,6 +64,11 @@ def _cond_unary(parser):
         _unary(parser)
 
 
+def _swap(parser):
+    parent = parser.nodes[-1]
+    parent.children[-1], parent.children[-2] = parent.children[-2], parent.children[-1]
+
+
 def _bin(parser):
     second = parser.nodes.pop()
     op = parser.nodes.pop()
@@ -94,7 +99,8 @@ _OPS = {
     'IUNARY': _iunary,
     'CHK_MERGE': _chk_merge,
     'SHIFT': _shift,
-    'ε': _epsilon
+    'ε': _epsilon,
+    'SWAP': _swap
 }
 
 

@@ -6,4 +6,4 @@ class Token:
         self.location = line
 
     def __str__(self):
-        return self.type
+        return self.lexeme

@@ -2,7 +2,7 @@ import uuid
 
 
 class Node:
-    def __init__(self, label: str, parent=None):
+    def __init__(self, label, parent=None):
         self.label = label
         self.children = []
         self.parent = parent

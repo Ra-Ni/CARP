@@ -8,28 +8,7 @@ from syntax import Parser, AST, Node
 
 EXAMPLE = '../examples/syntax/polynomial.src'
 
-INJECTIONS = {
-    'aParams',
-    'ClassList',
-    'DataMember',
-    'DimList',
-    'Factor',
-    'FCall',
-    'fParam',
-    'FParamList',
-    'IndiceList',
-    'MembList',
-    'Prog',
-    'StatBlock',
-    'StatementList',
-    'variable',
-    'VarDecl',
-    'FuncDefList',
-    'VarDeclList',
-    'FuncBody'
-}
-
-labels = ('name', 'kind', 'type', 'visibility', 'link')
+labels = ['name', 'kind', 'type', 'visibility', 'link']
 new_label = ('kind', 'type', 'visibility', 'link')
 
 
@@ -37,53 +16,103 @@ class Table:
     def __init__(self):
         self.name = ''
         self.uuid = uuid.uuid4()
-        self.inheritance = []
-        self.table = pd.DataFrame(columns=['kind', 'type', 'visibility', 'link'])
+        self.annotations = {}
+        self.table = pd.DataFrame(columns=labels)
+        self.type = ''
+
+    def as_entry(self):
+        pass
+
+
+class Label:
+    def __init__(self):
+        self.annotations = {}
+        self.frame = pd.DataFrame()
+
+    def __str__(self):
+        txt = ''
+        for key, value in self.annotations.items():
+            txt += key + ': ' + value + '\n'
+
+        return self.frame.to_string() + '\n\n' + txt
 
 
 def Class(node: Node):
     name = node.children[0].label
+    inherits = node.children[1].label
+    declarations = node.children[2:]
+
+    label = Label()
+    label.annotations['name'] = name
+    label.annotations['inherits'] = inherits
+    label.annotations['kind'] = 'class'
+    label.frame = pd.DataFrame(columns=labels)
+    node.label = label
+
+    node.children = node.children[2:]
+
+
+def declaration(node: Node):
+    visibility = node.children[0].label
+    if node.children[1].label == 'var_decl':
+        variable = var_decl(node.children[1])
+        variable['visibility'] = visibility
+
+        node.parent.label.frame = node.parent.label.frame.append(variable, ignore_index=True)
+        node.parent.children.remove(node)
+    else:
+        decl = func_decl(node.children[1])
+        decl['visibility'] = visibility
+        node.parent.label.frame = node.parent.label.frame.append(decl, ignore_index=True)
+        node.parent.children.remove(node)
 
 
 def func_decl(node: Node):
-    name = node.children[0].label
-    return_type = node.children[-1].label
-
-    frame = pd.DataFrame(columns=['kind', 'signature'])
-    if len(node.children) == 3:
-
-        for argument in node.children[1].children:
-            if argument.label == 'variable_decl':
-                frame.append(variable_decl(argument))
-
-
-def variable_decl(node: Node):
-    signature = node.children[0].label
+    binding = node.children[0].label if node.children[0].label != 'ε' else ''
     name = node.children[1].label
-    if len(node.children) == 3:
-        signature += index(node.children[2])
+    params = node.children[2]
+    return_type = node.children[3].label
+    body = None # todo fix
 
-    return pd.Series(data=['parameter', signature], index=['kind', 'signature'], name=name)
+    label = Label()
+    label.annotations['binding'] = binding
+    label.annotations['name'] = name
+    label.frame = parameters(node.children[2])
+    s = label.frame['type'].to_list()
+    s = ', '.join(s)
+    return pd.Series(data=[name, 'function', s, None, label], index=labels)
 
 
-def index(node: Node):
-    return '[' + ']['.join(x.label for x in node.children) + ']'
+def parameters(node: Node):
+    frame = pd.DataFrame(columns=labels)
 
+    for child in node.children:
+        frame = frame.append(var_decl(child, 'parameter'), ignore_index=True)
 
-_OPS = {
-    'declaration': declaration,
-    'func': func,
-    'variable_decl': variable_decl,
-    'dimensions': dimensions
-}
+    return frame
+
+def var_decl(node: Node, kind='variable'):
+    typedef = node.children[0].label
+    var_name = node.children[1].label
+    dims = dimensions(node.children[2])
+
+    return pd.Series(data=[var_name, kind, typedef + dims, None, None], index=labels)
+
+def dimensions(node: Node):
+    if node.label == 'ε':
+        return ''
+    else:
+        return '[' + ']['.join(filter(lambda x: x.label != 'ε', node.children)) + ']'
 
 if __name__ == '__main__':
     scanner = Scanner.load(EXAMPLE, suppress_comments=1)
     syntax_analyzer = Parser.load()
     response = syntax_analyzer.parse(scanner)
     ast = syntax_analyzer.ast
+    for node in ast.bfs():
+        if node.label == 'class':
+            Class(node)
+        elif node.label == 'declaration':
+            declaration(node)
 
-    cols = ('name', 'kind', 'type', 'link')
-    table = pd.DataFrame(columns=cols)
-    table = table.append({'name': 1, 'type': 0, 'kind': 3, 'link': 0}, ignore_index=True)
-    print(table)
+    ast.render('test.png')

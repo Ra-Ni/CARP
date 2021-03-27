@@ -21,7 +21,7 @@ class AST:
         nodes = {}
         for node in self.bfs():
             label = node.label
-            if label != 'ε':
+            if isinstance(label, str) and label != 'ε':
                 label += ' '
 
             nodes[node.uid] = pydot.Node(node.uid, label=str(label))
