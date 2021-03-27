@@ -1,6 +1,7 @@
 from collections import deque
 import pydot
 
+from symantec.label import Label
 from .node import Node
 
 
@@ -23,6 +24,8 @@ class AST:
             label = node.label
             if isinstance(label, str) and label != 'ε':
                 label += ' '
+            if isinstance(label, Label):
+                label = label.to_string()
 
             nodes[node.uid] = pydot.Node(node.uid, label=str(label))
             graph.add_node(nodes[node.uid])
