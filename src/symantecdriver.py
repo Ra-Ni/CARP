@@ -3,8 +3,9 @@ from collections import deque
 
 import pandas as pd
 import pydot
+from tabulate import tabulate
 
-from lex import Scanner
+from lex import Scanner, Token
 from symantec.label import Label, labels, nlabels
 from syntax import Parser, AST, Node
 
@@ -19,7 +20,7 @@ def dimensions(node: Node):
 
 
 def inherits(node: Node):
-    node.label = [x.label for x in node.children]
+    node.label = [x.label.lexeme for x in node.children]
     node.children = []
 
 
@@ -33,7 +34,7 @@ def List(node: Node):
 
 
 def Class(node: Node):
-    name = node.children[0].label
+    name = node.children[0].label.lexeme
     link = [node.children[2]]
 
     if not isinstance(node.children[2].label, pd.DataFrame):
@@ -47,7 +48,7 @@ def Class(node: Node):
 
 
 def declaration(node: Node):
-    visibility = node.children[0].label
+    visibility = node.children[0].label.lexeme
     label = node.children[1].label
 
     label['visibility'] = visibility
@@ -69,23 +70,25 @@ def var(node: Node):
 
 
 def func_decl(node: Node):
-    name = node.children[1].label
+    name = node.children[1].label.lexeme
     if node.children[0].label != 'ε':
-        name = node.children[0].label + '::' + name
+        name = node.children[0].label.lexeme + '::' + name
 
     if not isinstance(node.children[2].label, pd.DataFrame):
         node.children[2].label = pd.DataFrame(columns=nlabels)
         params = ''
     else:
         params = ', '.join(node.children[2].label['type'])
-    params += ' : ' + node.children[3].label
+    params += ' : ' + node.children[3].label.lexeme
 
     if not isinstance(node.children[4].label, pd.DataFrame):
         node.children[4].label = pd.DataFrame(columns=nlabels)
 
-    node.children[4].label = node.children[4].label.append(node.children[2].label)
+    node.children[4].label = node.children[2].label.append(node.children[4].label)
 
     node.label = pd.Series(['function', params, None, [node.children[4]]], index=nlabels, name=name)
+
+
     node.children = []
 
 
@@ -103,11 +106,12 @@ def parameters(node: Node):
 
 
 def var_decl(node: Node):
-    name = node.children[1].label
-    typedef = node.children[0].label
+
+    name = node.children[1].label.lexeme
+    typedef = node.children[0].label.lexeme
 
     if node.children[2].label != 'ε':
-        typedef += '[' + ']['.join(filter(lambda x: x.label != 'ε', node.children[2].children)) + ']'
+        typedef += '[' + ']['.join(filter(lambda x: x.label.lexeme != 'ε', node.children[2].children)) + ']'
 
     node.label = pd.Series(data=['variable', typedef, None, None],
                            index=['kind', 'type', 'visibility', 'link'],
@@ -155,7 +159,17 @@ SYS = {
 }
 
 def function_parse(node: Node):
-    functions = node.label.filter(regex='.*::.*', axis=0)
+    functions = list(filter(lambda x: '::' in x, node.label.index.to_list()))
+    for function in functions:
+        class_name, func_name = function.split('::')
+
+        if class_name in node.label.index:
+            class_ref = node.label.loc[class_name]['link']
+            for link in class_ref:
+                if isinstance(link, Node) and func_name in link.label.index and node.label.loc[function]['type'] == link.label.loc[func_name]['type']:
+
+                    link.label.loc[func_name] = node.label.loc[function]
+        node.label.drop(index=function, inplace=True)
     #todo complete this because we want to bind functions.
 
 
@@ -166,7 +180,10 @@ def render(node: Node, src: str):
 
     while queue:
         node = queue.pop()
-        nodes[node.uid] = pydot.Node(node.uid, label=str(node.label))
+        label = str(node.label)
+        if isinstance(node.label, pd.DataFrame):
+            label = str(tabulate(node.label, headers='keys', tablefmt='psql'))
+        nodes[node.uid] = pydot.Node(node.uid, label=str(label), labeljust='l', shape='box')
         graph.add_node(nodes[node.uid])
 
         if node.children:
@@ -195,8 +212,14 @@ if __name__ == '__main__':
     nodes = list(filter(lambda x: len(x.children) > 0, ast.bfs()))
     nodes.reverse()
 
+
+
     for node in nodes:
         if node.label in SYS:
             SYS[node.label](node)
+        if isinstance(node.label, Token) and node.label.lexeme == node.label.type and node.label.lexeme in SYS:
+            SYS[node.label.lexeme](node)
 
+    root = ast.root
+    function_parse(root)
     render(ast.root, 'test.png')
