@@ -4,6 +4,7 @@ import uuid
 class Node:
     def __init__(self, label, parent=None):
         self.label = label
+        self.data = None
         self.children = []
         self.parent = parent
         self._uid = uuid.uuid4()
@@ -33,4 +34,8 @@ class Node:
         return isinstance(other, Node) and self._uid < other._uid
 
     def __str__(self):
-        return self.label
+        if isinstance(self.label, str):
+            return self.label
+        else:
+            return self.uid
+

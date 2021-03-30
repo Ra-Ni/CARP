@@ -1,115 +1,191 @@
 import uuid
+from collections import deque
 
 import pandas as pd
+import pydot
 
-from _config import CONFIG
 from lex import Scanner
-from symantec.label import Label, labels
+from symantec.label import Label, labels, nlabels
 from syntax import Parser, AST, Node
 
 EXAMPLE = '../examples/syntax/polynomial_correct.src'
 
-
 new_label = ('kind', 'type', 'visibility', 'link')
 
 
+def dimensions(node: Node):
+    node.label = '[' + ']['.join(x.label for x in node.children) + ']'
+    node.children = []
+
+
 def inherits(node: Node):
-    if node.label == 'ε':
-        return ''
-    else:
-        return repr([x.label for x in node.children])
-
-def Class(node: Node):
-    name = node.children[0].label
-    inh = inherits(node.children[1])
-    declarations = node.children[2:]
-
-    label = Label()
-    label.annotations['name'] = name
-    label.annotations['inherits'] = inh
-    label.annotations['kind'] = 'class'
-    label.frame = pd.DataFrame(columns=labels)
-    node.label = label
-
-    node.children = node.children[2:]
-
-def declaration(node: Node):
-    visibility = node.children[0].label
-    if node.children[1].label == 'var_decl':
-        variable = var_decl(node.children[1])
-        variable['visibility'] = visibility
-
-        node.parent.label.frame = node.parent.label.frame.append(variable, ignore_index=True)
-        node.parent.children.remove(node)
-    else:
-        func_decl(node.children[1])
-        node.children[1].label.annotations['visibility'] = visibility
-        node.label = node.children[1].label
-        node.children = []
+    node.label = [x.label for x in node.children]
+    node.children = []
 
 
-def func_decl(node: Node):
-    binding = node.children[0].label if node.children[0].label != 'ε' else ''
-    name = node.children[1].label
-    params = node.children[2]
-    return_type = node.children[3].label
-    body = node.children[4]
-
-    label = Label()
-    label.annotations['binding'] = binding
-    label.annotations['name'] = name
-    label.annotations['return_type'] = return_type
-    label.frame = parameters(node.children[2])
-    node.label = label
-
-
-    node.children = [node.children[4]]
-
-
-def var(node: Node):
-    frame = pd.DataFrame(columns=labels)
+def List(node: Node):
+    node.parent.children.remove(node)
     for child in node.children:
-        frame = frame.append(var_decl(child, 'variable'), ignore_index=True)
+        child.parent = node.parent
+        node.parent.children.append(child)
 
     node.children = []
 
-    parent = node.parent
-    while not isinstance(parent.label, Label):
-        parent = parent.parent
-    parent.label.frame = parent.label.frame.append(frame)
-    node.parent.children.remove(node)
+
+def Class(node: Node):
+    name = node.children[0].label
+    link = [node.children[2]]
+
+    if not isinstance(node.children[2].label, pd.DataFrame):
+        node.children[2].label = pd.DataFrame()
+
+    if node.children[1].label != 'ε':
+        link.extend(node.children[1].label)
+
+    node.label = pd.Series(['class', None, None, link], index=nlabels, name=name)
+    node.children = []
 
 
-def funcDefList(node: Node):
+def declaration(node: Node):
+    visibility = node.children[0].label
+    label = node.children[1].label
+
+    label['visibility'] = visibility
+    index = node.parent.children.index(node)
+    node.parent.children[index] = node.children[1]
+    node.children[1].parent = node.parent
+    node.children = []
 
 
-    for child in node.children:
-        func_decl(child)
+def declarations(node: Node):
+    node.label = pd.DataFrame([x.label for x in node.children])
+    node.children = []
 
-def parameters(node: Node):
-    frame = pd.DataFrame(columns=labels)
 
-    for child in node.children:
-        frame = frame.append(var_decl(child, 'parameter'), ignore_index=True)
+def var(node: Node):
+    node.label = pd.DataFrame([x.label for x in node.children], columns=nlabels)
 
-    return frame
+    node.children = []
 
-def var_decl(node: Node, kind='variable'):
-    typedef = node.children[0].label
-    var_name = node.children[1].label
-    dims = dimensions(node.children[2])
 
-    return pd.Series(data=[var_name, kind, typedef + dims, None, None], index=labels)
+def func_decl(node: Node):
+    name = node.children[1].label
+    if node.children[0].label != 'ε':
+        name = node.children[0].label + '::' + name
 
-def dimensions(node: Node):
-    if node.label == 'ε':
-        return ''
+    if not isinstance(node.children[2].label, pd.DataFrame):
+        node.children[2].label = pd.DataFrame(columns=nlabels)
+        params = ''
     else:
-        return '[' + ']['.join(filter(lambda x: x.label != 'ε', node.children)) + ']'
+        params = ', '.join(node.children[2].label['type'])
+    params += ' : ' + node.children[3].label
+
+    if not isinstance(node.children[4].label, pd.DataFrame):
+        node.children[4].label = pd.DataFrame(columns=nlabels)
+
+    node.children[4].label = node.children[4].label.append(node.children[2].label)
+
+    node.label = pd.Series(['function', params, None, [node.children[4]]], index=nlabels, name=name)
+    node.children = []
+
 
 def Main(node: Node):
+    node.label = pd.Series(['function', None, None, node.children], index=nlabels, name='main')
+
+    node.children = []
+
+
+def parameters(node: Node):
+    node.label = pd.DataFrame([x.label for x in node.children], columns=nlabels)
+    node.label['kind'] = ['parameter'] * len(node.label['type'])
+
+    node.children = []
+
+
+def var_decl(node: Node):
+    name = node.children[1].label
+    typedef = node.children[0].label
+
+    if node.children[2].label != 'ε':
+        typedef += '[' + ']['.join(filter(lambda x: x.label != 'ε', node.children[2].children)) + ']'
+
+    node.label = pd.Series(data=['variable', typedef, None, None],
+                           index=['kind', 'type', 'visibility', 'link'],
+                           name=name)
+
+    node.children = []
+
+
+def body(node: Node):
+    node.label = pd.DataFrame(columns=nlabels)
+    if node.children and isinstance(node.children[0].label, pd.DataFrame):
+        node.label = node.label.append(node.children[0].label)
+        node.children.pop(0)
+
+
+def empty(node: Node, name):
     node.label = Label()
-    node.label.annotations['name'] = 'main'
+
+    node.label.frame = pd.DataFrame(columns=['kind', 'type', 'visibility', 'link'])
+    node.label.series = pd.Series(index=node.label.frame.columns, name=name, dtype='object')
+
+
+def prog(node: Node):
+    node.label = pd.DataFrame(columns=nlabels)
+    node.label = node.label.append([x.label for x in node.children])
+    node.children = []
+
+
+SYS = {
+
+    'var_decl': var_decl,
+    'parameters': parameters,
+    'func': func_decl,
+    'declaration': declaration,
+    'declarations': declarations,
+    'inherits': inherits,
+    'class': Class,
+    'ClassList': List,
+    'FuncDefList': List,
+    'body': body,
+    'var': var,
+    'main': Main,
+    'Prog': prog,
+    'DimList': dimensions
+}
+
+def function_parse(node: Node):
+    functions = node.label.filter(regex='.*::.*', axis=0)
+    #todo complete this because we want to bind functions.
+
+
+def render(node: Node, src: str):
+    queue = deque([node])
+    graph = pydot.Dot('AST', graph_type='digraph')
+    nodes = {}
+
+    while queue:
+        node = queue.pop()
+        nodes[node.uid] = pydot.Node(node.uid, label=str(node.label))
+        graph.add_node(nodes[node.uid])
+
+        if node.children:
+            for c in node.children:
+                d = nodes.setdefault(c.uid, pydot.Node(c.uid, label=str(c)))
+                queue.append(c)
+                graph.add_edge(pydot.Edge(nodes[node.uid], d))
+        if isinstance(node.label, pd.DataFrame):
+            children = node.label['link'].to_list()
+            for c in children:
+                if c is not None:
+                    for child in c:
+                        if isinstance(child, Node):
+                            c = nodes.setdefault(child.uid, pydot.Node(child.uid, label=child.label.to_string()))
+                            queue.append(child)
+                            graph.add_edge(pydot.Edge(nodes[node.uid], c))
+
+    graph.write_png(src, encoding='utf-8')
+
 
 if __name__ == '__main__':
     scanner = Scanner.load(EXAMPLE, suppress_comments=1)
@@ -119,16 +195,8 @@ if __name__ == '__main__':
     nodes = list(filter(lambda x: len(x.children) > 0, ast.bfs()))
     nodes.reverse()
 
+    for node in nodes:
+        if node.label in SYS:
+            SYS[node.label](node)
 
-    for node in ast.bfs():
-        if node.label == 'class':
-            Class(node)
-        elif node.label == 'main':
-            Main(node)
-        elif node.label == 'declaration':
-            declaration(node)
-        elif node.label == 'FuncDefList':
-            funcDefList(node)
-        elif node.label == 'var':
-            var(node)
-    ast.render('test.png')
+    render(ast.root, 'test.png')
