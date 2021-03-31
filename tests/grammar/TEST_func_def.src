@@ -9,7 +9,11 @@ func mult_params(integer i, float f, string S, something T): void {}
 
 // ====== main ====== //
 main {
+    var {
+        string s;
+    }
 
+    s = "hello";
 }
 /*
     classes

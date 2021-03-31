@@ -18,10 +18,10 @@ def _run(file):
     s.open(file)
     resp = f.parse(s)
 
-    # path = Path(file)
-    # path = str(path.parent) + '\\out\\' + str(path.stem) + '.png'
-    # if f.ast:
-    #     f.ast.render(path)
+    path = Path(file)
+    path = str(path.parent) + '\\out\\' + str(path.stem) + '.png'
+    if f.ast:
+        f.ast.render(path)
 
     return resp
 
