@@ -1,7 +1,7 @@
 from collections import deque
 import pydot
 
-from symantec.label import Label
+
 from .node import Node
 
 

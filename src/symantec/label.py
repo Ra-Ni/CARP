@@ -16,17 +16,31 @@ class Table:
         pass
 
 
-class Label:
-    def __init__(self):
-        self.data = pd.DataFrame()
+class Entry:
+    def __init__(self, name=None, kind=None, type=None, visibility=None):
+        self.name = name
+        self.kind = kind
+        self.type = type
+        self.visibility = visibility
         self.uid = uuid.uuid4()
-        self.reference = pd.Series(index=['kind', 'type', 'visibility', 'link'], name=None, dtype='object')
+
+    def like(self, other):
+        return isinstance(other, Entry) and \
+               other.kind == self.kind and \
+               other.type == self.type and \
+               self.visibility == other.visibility
 
     def __str__(self):
-        return str(self.uid)
+        return self.name
 
-    def to_string(self):
-        txt = str(self.uid)
+    def __eq__(self, other):
+        return isinstance(other, str) and self.name == other
 
-        txt2 = '' if self.reference is None else self.reference.to_string()
-        return self.data.to_string() + '\n\n' + txt + '\n\n' + txt2
+    def __lt__(self, other):
+        return isinstance(other, Entry) and self.name < other.name
+
+    def __le__(self, other):
+        return isinstance(other, Entry) and self.name <= other.name
+
+    def __hash__(self):
+        return int(self.uid)

@@ -1,9 +1,10 @@
 // ====== Class declarations ====== //
 class POLYNOMIAL {
 	public func evaluate(float x) : float;
+	public func test(float x) : float;
 };
 
-class LINEAR inherits POLYNOMIAL,TEST,YOU {
+class LINEAR inherits POLYNOMIAL {
 	private float a;
 	private float b;
 	
@@ -22,6 +23,11 @@ class QUADRATIC inherits POLYNOMIAL {
 
 // ====== Function Definitions ====== //
 func POLYNOMIAL::evaluate(float x) : float
+{
+  return (0);
+}
+
+func POLYNOMIAL::test(float x) : float
 {
   return (0);
 }
