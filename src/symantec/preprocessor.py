@@ -7,7 +7,6 @@ import heapq as hq
 from _config import CONFIG
 from syntax import Node
 
-
 nlabels = ['kind', 'type', 'visibility', 'link']
 
 
@@ -74,6 +73,7 @@ def func(node: Node):
     if name in statements.label:
         raise ReferenceError('Duplicate name in parameter and function name')
 
+
 def decl(node: Node):
     node.label = node.children[1].label
     node.label['visibility'] = node.children[0].label
@@ -98,6 +98,7 @@ def group(node: Node):
 
     delete(node)
 
+
 def body(node: Node):
     if isinstance(node.children[0].label, pd.DataFrame):
         node.label = node.children[0].label
@@ -111,12 +112,14 @@ def body(node: Node):
     body_node.parent = node
     node.label = node.label.append(pd.Series(['function', None, None, body_node], index=nlabels, name='body'))
 
+
 def inherits(node: Node):
     if node.label == CONFIG['EPSILON']:
         node.label = None
     elif not isinstance(node.label, list):
         node.label = [x.label for x in node.children]
         delete(node)
+
 
 def Class(node: Node):
     inherits(node.children[1])
@@ -129,10 +132,12 @@ def Class(node: Node):
     node.children.pop()
     delete(node)
 
+
 def main(node: Node):
     child = node.children.pop()
     child.parent = node.parent
     node.label = pd.Series(['function', None, None, child], index=nlabels, name='main')
+
 
 def inheritance_check(node: Node):
     heap = []
@@ -157,7 +162,6 @@ def inheritance_check(node: Node):
 
         if len(visited) != 1:
             hq.heappush(heap, (len(visited) - 1, index))
-
 
     while heap:
         _, index = hq.heappop(heap)
@@ -184,7 +188,7 @@ def inheritance_check(node: Node):
             else:
 
                 pointer['link'].label = entry.append(series)
-
+    node.label.drop(columns='inherits', inplace=True)
 
 
 def function_binding(node: Node):
@@ -207,6 +211,7 @@ def function_binding(node: Node):
             function.label.loc[func_name]['link'] = series['link']
 
             node.label.drop(index=series.name, inplace=True)
+
 
 def call(node: Node):
     first = node.children[0]
@@ -242,4 +247,3 @@ SYS = {
     'main': main,
     'call': call,
 }
-
