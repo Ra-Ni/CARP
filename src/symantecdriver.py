@@ -18,7 +18,6 @@ new_label = ('kind', 'type', 'visibility', 'link')
 
 
 def render(root: Node, src: str):
-
     graph = pydot.Dot('AST', graph_type='digraph')
     nodes = {}
     visited = set()
@@ -28,17 +27,17 @@ def render(root: Node, src: str):
         else:
             visited.add(n.uid)
         if isinstance(n.label, pd.DataFrame):
-            label = str(tabulate(n.label, headers='keys', tablefmt='psql'))
+            label = str(tabulate(n.label, headers='keys', tablefmt='github', numalign='left', floatfmt=',1.5f'))
+
         else:
             label = str(n.label)
 
         # label += f'\n\nid: {n.uid}\n\nparent: {"None" if not n.parent else n.parent.uid}'
-        nodes[n.uid] = pydot.Node(n.uid, label=label)
+        nodes[n.uid] = pydot.Node(n.uid, label=label.replace('\n', '\l'), shape='box', )
         graph.add_node(nodes[n.uid])
 
         if n.parent:
             graph.add_edge(pydot.Edge(nodes[n.parent.uid], nodes[n.uid]))
-
 
     # while queue:
     #     child = queue.pop()
@@ -91,6 +90,7 @@ def render(root: Node, src: str):
     #         queue.extend(entries)
     graph.write_png(src, encoding='utf-8')
 
+
 def uniquebfs(node: Node):
     queue = deque([node])
     visited = set()
@@ -124,9 +124,6 @@ def bfs(node: Node):
         yield parent
 
 
-
-
-
 if __name__ == '__main__':
     scanner = Scanner.load(EXAMPLE, suppress_comments=1)
     syntax_analyzer = Parser.load()
@@ -140,8 +137,6 @@ if __name__ == '__main__':
             SYS[node.label](node)
         if isinstance(node.label, Token) and node.label.lexeme == node.label.type and node.label.lexeme in SYS:
             SYS[node.label.lexeme](node)
-
-
 
     # root = ast.root
     # roots = ast.root
@@ -157,11 +152,10 @@ if __name__ == '__main__':
             continue
         visited.add(node.uid)
 
-
         if node.label in PHASE2:
             PHASE2[node.label](node)
         if isinstance(node.label, Token) and node.label.lexeme == node.label.type and node.label.lexeme in SYS:
             PHASE2[node.label.lexeme](node)
-    #reference_fixer(root.label.loc['main']['link'][0])
+    # reference_fixer(root.label.loc['main']['link'][0])
     # reference_fixer(root.label.loc['POLYNOMIAL']['link'][0].label.loc['evaluate']['link'][0])
     render(ast.root, 'test.png')

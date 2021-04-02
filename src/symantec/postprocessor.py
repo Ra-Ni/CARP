@@ -175,8 +175,11 @@ PHASE2 = {
     '.': dot,
     'call': call,
     'write': purge,
+    'read': purge,
     'block': purge,
     'while': purge,
+    'if': purge,
     'body': wipe,
+
 }
 
