@@ -12,7 +12,7 @@ def _new(parser):
 
 
 def _push(parser):
-    parser.nodes.append(Node(parser.last_production))
+    parser.nodes.append(Node(parser.last_production.lexeme))
 
 
 def _iunary(parser):

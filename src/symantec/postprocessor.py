@@ -1,227 +1,182 @@
-from collections import deque
-from operator import itemgetter
 import pandas as pd
 
-from symantec.preprocessor import nlabels
+from _config import CONFIG
 from syntax import Node
-from lex import Token
-
-def inheritance(node: Node):
-    weights = []
-
-    for index, series in node.label.iterrows():
-        queue = deque(series['link'][1:])
-
-        visited = {index}
-
-        while queue:
-            name = queue.pop()
-            if name in visited:
-                raise RecursionError()
-            elif name not in node.label.index:
-                raise TypeError()
-
-            visited.add(name)
-            queue.extend(node.label.loc[name]['link'][1:])
-
-        if len(visited) != 1:
-            weights.append((index, len(visited)))
-
-    weights.sort(key=itemgetter(1), reverse=True)
-
-    while weights:
-        index, _ = weights.pop()
-        pointer = node.label.loc[index]
-        entry = pointer['link'][0].label
-        links = pointer['link'][1:]
-
-        frame = pd.DataFrame(columns=nlabels)
-        for name in links:
-            reference = node.label.loc[name]['link'][0]
-            frame = frame.append(reference.label)
-            if any(frame.index.duplicated()):
-                raise NameError()
-
-        node.label.loc[index]['link'] = [node.label.loc[index]['link'][0]]
-        for index, series in frame.iterrows():
-            if index in entry.index:
-
-                if series['type'] == entry.loc[index]['type'] and \
-                        series['kind'] == entry.loc[index]['kind'] and \
-                        series['visibility'] == entry.loc[index]['visibility']:
-                    print('warning override')
-                else:
-                    raise TypeError
-            else:
-                pointer['link'][0].label = entry.append(series)
 
 
+def search(node: Node, term):
+    parent = node.parent
 
-def bfs(root):
-    queue = deque([root])
-    while queue:
-        node = queue.popleft()
-        queue.extend(node.children)
-        yield node
+    while True:
+        if not parent:
+            raise ReferenceError(f'reference {term} not found')
+        elif isinstance(parent.label, pd.DataFrame) and term in parent.label.index:
+            break
+        else:
+            parent = parent.parent
 
-def indexlist(node: Node):
-    pass
+    return parent, parent.label.loc[term]
 
 
+def _to_types(*nodes: Node):
+    return list(map(lambda x: x.label if isinstance(x.label, str) else x.label['type'], nodes))
 
-def convert(node: Node, type):
-    node.label.type = type
 
-def binary_op(node: Node):
-    second = node.children[-1]
-    first = node.children[0]
+def delete(node: Node):
+    while node.children:
+        del node.children[-1]
+    node.children = []
 
-    if first == second:
-        node.label.lexeme = node.label.lexeme + second.label.lexeme
-        node.label.type = second.label.type
-        node.children.pop()
-    else:
 
-        if first.label.type != second.label.type:
-            raise TypeError('the type {} != {}'.format(first.label.type, second.label.type))
+def purge(node: Node):
+    delete(node)
+    if node.parent:
+        node.parent.children.remove(node)
 
-        node.label.type = second.label.type
+    del node
+
+
+def wipe(node: Node):
+    node.parent.label.drop(index=node.label, inplace=True)
+    node.parent = None
+    purge(node)
+
+
+def var(node: Node):
+    first, second = node.children
+    _, first = search(node, first.label)
+    second = len(second.children)
+    dimension = first['type']
+    dimension_size = dimension.count('[]')
+
+    if second > dimension_size:
+        msg = f'Variable of the form {first} called with index list of {second}'
+
+    dimension = dimension.replace('[]', '') + '[]' * (dimension_size - second)
+    node.label = first.copy()
+    node.label['type'] = dimension
+    delete(node)
+
+
+def bin(node: Node):
+    children = _to_types(*node.children)
+
+    if any(children[0] != x for x in children):
+        msg = f'Operation "{node.label}" on sequence ' \
+              f'[{", ".join(children)}] is forbidden'
+        raise TypeError(msg)
+
+    node.label = children[0]
+    delete(node)
+
 
 def args(node: Node):
-    types = []
-    values = []
-    for child in node.children:
-        types.append(child.label.type)
-        values.append(child.label.lexeme)
+    children = _to_types(*node.children)
+    node.label = ', '.join(children)
 
-    types = ', '.join(types)
+    delete(node)
 
 
-    node.label = Token(types, 'args', -1)
+def const(node: Node):
+    first, second = node.children
+    node.label = first.label
+    delete(node)
+
+
+def index(node: Node):
+    if node.label == CONFIG['EPSILON']:
+        node.label = ''
+    else:
+        node.label = '[]' * len(node.children)
+        delete(node)
 
 
 def call(node: Node):
-    first = node.children[0]
-    second = node.children[1]
+    first, second = node.children
+    first, second = first.label, second.label
 
-    if first.label.type != 'id':
-        raise TypeError
-    else:
-        first.label.type = 'function'
+    if isinstance(first, str):
+        _, first = search(node, first)
+        first = first.label
 
-    node.label = Token(first.label.lexeme + ' : ' + second.label.type, 'Call', -1)
+    if first['kind'] != 'function':
+        msg = f'Function call on a variable "{first.name}" is illegal'
+        raise TypeError(msg)
 
+    parameters, returns = first['type'].split(' : ')
 
+    if parameters != second:
+        msg = f'Function call on "{first.name}" ' \
+              f'with arguments signature of "{second}" ' \
+              f'does not match function signature of "{parameters}"'
+        raise TypeError(msg)
 
-def dot(node: Node, global_table):
-    first = node.children[0]
-    second = node.children[1]
-
-    if first.label.type not in global_table.label.index:
-        raise TypeError
-    ref = global_table.label.loc[first.label.type]
-    ref = ref['link'][0]# todo remove the [0]
-
-    if ' : ' in second.label.type:
-        func_name, typedef = second.label.type.split(' : ')
-
-        if func_name not in ref.label.index:
-            raise TypeError
-        ref = ref.label.loc[func_name]
-
-        params, return_type = ref['type'].split(' : ')
-        if params != typedef:
-            raise TypeError(func_name)
-
-        node.label.type = return_type
-
-    else:
-        if first.label.type != second.label.type:
-            raise TypeError
-        node.label.type = first.label.type
+    node.label = returns
+    delete(node)
 
 
-def make_function(node: Node):
-    node.label.type = 'function'
+def dot(node: Node):
+    first, second = node.children
+    name = first.label['type']
 
-def new_token(node: Node):
-    node.label = Token(node.label, '{...};', -1)
-def variable(node: Node, cache={}):
+    _, first = search(node, name)
+    first = first['link'].label
+    second = second.label
 
-    name = node.children[0].label.lexeme
-    index = node.children[1].label
+    if not isinstance(second, str):
+        second = second.name
 
-    if name not in cache:
-        parent = node.parent
-        while parent and \
-                (not isinstance(parent.label, pd.DataFrame) or name not in parent.label.index):
-            parent = parent.parent
-        if parent and name in parent.label.index:
-            cache[name] = parent.label.loc[name]
+    if second not in first.index:
+        msg = f'variable or function "{second}" ' \
+              f'not visible or existent in class "{name}"'
+        raise TypeError(msg)
 
-    name_type = cache[name]['type']
-    if index != 'ε':
-        pass
-    else:
-        name_type += ''
-    node.label = Token(name_type, name, -1)
-    node.children = []
+    node.label = first.loc[second]
+    delete(node)
 
-def remove(node: Node):
-    i = node.parent.children.index(node)
-    node.parent.children[i] = node.children[0]
-    node.children[0].parent = node.parent
 
 def return_type(node: Node):
-    pass
+    child = _to_types(*node.children)[0]
+    parent = node.parent
+
+    while not isinstance(parent.label, pd.DataFrame):
+        parent = parent.parent
+
+    link = parent
+    parent = parent.parent.label
+    parent = parent.loc[parent['link'] == link]
+    parent = parent.squeeze()
+
+    _, returns = parent['type'].split(' : ')
+
+    if returns != child:
+        msg = f'defined return of type "{child}" ' \
+              f'does not match function "{parent.name}" ' \
+              f'return type of "{returns}"'
+        raise TypeError(msg)
+
+    purge(node)
 
 
 PHASE2 = {
-    'ROOT': None,
-    'variable': variable,
-    'floatnum': lambda x: convert(x, 'float'),
-    'intnum': lambda x: convert(x, 'integer'),
-    'stringlit': lambda x: convert(x, 'string'),
-    'minus': binary_op,
+    'var': var,
+    'const': const,
+    'return': return_type,
     'args': args,
-    'Call': call,
-    'dot': lambda x: dot(x, PHASE2['ROOT']),
-    'write': make_function,
-    'while': make_function,
-    'leq': binary_op,
-    'assign': binary_op,
-    'Block': new_token,
-    'mult': binary_op,
-    'plus': binary_op,
+    '-': bin,
+    '*': bin,
+    '+': bin,
+    '/': bin,
+    '<=': bin,
+    '>=': bin,
+    '=': bin,
+    '<': bin,
+    '>': bin,
+    '.': dot,
+    'call': call,
+    'write': purge,
+    'block': purge,
+    'while': purge,
+    'body': wipe,
 }
-# 'write': remove,
-#     'leq': binary_op,
-
-
-
-def reference_fixer(node: Node):
-
-    children = list(bfs(node))
-    children.reverse()
-    cache = {}
-    for child in children:
-
-        if isinstance(child.label, str) and child.label in PHASE2:
-            PHASE2[child.label](child)
-        elif isinstance(child.label, Token) and child.label.type in PHASE2:
-            PHASE2[child.label.type](child)
-
-def function_parse(node: Node):
-    functions = list(filter(lambda x: '::' in x, node.label.index.to_list()))
-    for function in functions:
-        class_name, func_name = function.split('::')
-
-        if class_name in node.label.index:
-            class_ref = node.label.loc[class_name]['link']
-            for link in class_ref:
-                if isinstance(link, Node) and func_name in link.label.index and node.label.loc[function]['type'] == \
-                        link.label.loc[func_name]['type']:
-                    link.label.loc[func_name] = node.label.loc[function]
-        node.label.drop(index=function, inplace=True)
-    # todo complete this because we want to bind functions.
 

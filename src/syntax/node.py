@@ -34,8 +34,15 @@ class Node:
         return isinstance(other, Node) and self._uid < other._uid
 
     def __str__(self):
+
         if isinstance(self.label, str):
             return self.label
         else:
             return self.uid
 
+    def __del__(self):
+        self.children = None
+        self.parent = None
+        del self.label
+        del self.data
+        del self._uid

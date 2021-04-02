@@ -24,12 +24,12 @@ class QUADRATIC inherits POLYNOMIAL {
 // ====== Function Definitions ====== //
 func POLYNOMIAL::evaluate(float x) : float
 {
-  return (0);
+  return (0.0);
 }
 
 func POLYNOMIAL::test(float x) : float
 {
-  return (0);
+  return (0.0);
 }
 
 func LINEAR::evaluate(float x) : float
@@ -37,6 +37,7 @@ func LINEAR::evaluate(float x) : float
   var
   {
     float result;
+    float arr[][];
   }
   result = 0.0;
   result = a * x + b;
@@ -48,12 +49,14 @@ func QUADRATIC::evaluate(float x) : float
   var    
   {
     float result;
+    float arr[][];
   }
   //Using Horner's method
-  result[1] = a;
-  result(3 * 12, result[1]);
+  result = a;
+  result = 3.0 * 12.0;
   result = result * x + b;
   result = result * x + c;
+  arr[1][2] = result;
   return (result);
 }
   
