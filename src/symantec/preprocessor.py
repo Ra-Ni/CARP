@@ -1,249 +1,224 @@
+import re
+
 from collections import deque
-from operator import itemgetter
+
 
 import pandas as pd
-import heapq as hq
 
-from _config import CONFIG
 from syntax import Node
 
 nlabels = ['kind', 'type', 'visibility', 'link']
 
 
-def delete(node: Node):
-    while node.children:
-        del node.children[-1]
-
-
-def dim(node: Node):
-    if node.label == CONFIG['EPSILON']:
-        node.label = ''
-    elif node.label == 'dim':
-        node.label = '[]' * len(node.children)
-        node.label = node.label.replace(CONFIG['EPSILON'], '')
-        delete(node)
-
-
-def vardecl(node: Node):
-    dim(node.children[2])
-
-    typedef = node.children[0].label + node.children[2].label
-    name = node.children[1].label
-    node.label = pd.Series(data=['variable', typedef, None, None], index=nlabels, name=name)
-
-    delete(node)
-
-
-def params(node: Node):
-    node.label = pd.DataFrame([x.label for x in node.children], columns=nlabels)
-    node.label['kind'] = ['parameter'] * len(node.label['type'])
-    delete(node)
-
-    if any(node.label.index.duplicated()):
-        raise TypeError('Duplicate parameter found')
-
-
-def func(node: Node):
-    scope = node.children[0].label
-    name = node.children[1].label
-    parameters = node.children[2]
-    return_type = node.children[3].label
-    statements = node.children[4]
-
-    if scope == CONFIG['EPSILON']:
-        scope = ''
-    else:
-        scope += '::'
-    name = scope + name
-
-    if isinstance(parameters.label, str):
-        parameters.label = pd.DataFrame(columns=nlabels)
-
-    if isinstance(statements.label, str):
-        statements.label = parameters.label
-    else:
-        statements.label = parameters.label.append(statements.label)
-
-    param_entries = ', '.join(parameters.label['type']) + ' : ' + return_type
-
-    node.label = pd.Series(['function', param_entries, None, statements], index=nlabels, name=name)
-    node.children.remove(statements)
-    delete(node)
-
-    if name in statements.label:
-        raise ReferenceError('Duplicate name in parameter and function name')
-
-
-def decl(node: Node):
-    node.label = node.children[1].label
-    node.label['visibility'] = node.children[0].label
-    delete(node)
+def delete(*nodes: Node):
+    for node in nodes:
+        if node.parent:
+            node.parent.children.remove(node)
+        del node
 
 
 def group(node: Node):
-    frame = pd.DataFrame(columns=nlabels)
-    for child in node.children:
-        series = child.label
-        if series.name in frame.index:
-            if series['kind'] == 'function' and series['type'] == frame.loc[series.name]['type']:
-                raise TypeError('Duplicate function in group')
-            else:
-                raise TypeError('Duplicate something in group')
+    frame = pd.DataFrame([x.to_series() for x in node.children])
+    if any(frame.index.duplicated()):
+        raise TypeError(f'Duplicate found in table:\n{str(frame)}')
 
-        if series['link']:
-            series['link'].parent = node
-        frame = frame.append(series)
+    deletions = list(filter(lambda x: 'link' not in x, node.children))
+    delete(*deletions)
 
-    node.label = frame.where(frame.notnull(), None)
-
-    delete(node)
+    frame = frame.where(frame.notnull(), None)
+    node['table'] = frame
 
 
-def body(node: Node):
-    if isinstance(node.children[0].label, pd.DataFrame):
-        node.label = node.children[0].label
-        del node.children[0]
-    else:
-        node.label = pd.DataFrame(columns=nlabels)
+def variable(node: Node):
+    if 'type' in node:
+        dimensions = re.findall(r'\[([0-9]*)]', node['type'])
+        if dimensions:
+            node['dimensions'] = dimensions
+            node['type'] = node['type'][:node['type'].index('[')] + '[]' * len(node['dimensions'])
+            node.blacklist('dimensions')
 
-    body_node = Node('body')
-    body_node.adopt(*node.children)
-    node.children = []
-    body_node.parent = node
-    node.label = node.label.append(pd.Series(['function', None, None, body_node], index=nlabels, name='body'))
+    node.override('__eq__',
+                  lambda x:
+                  x['type'] == node['type'] and \
+                  x['kind'] == node['kind'])
+
+def index(node: Node):
+    if any([x['type'] != 'integer' for x in node.children]):
+        raise TypeError(f'Array indices "{",".join(x["name"] for x in node.children)}" is not of type integer.')
+
+    node.parent['index'] = [int(x['name']) for x in node.children]
+    node.parent.blacklist('index')
+    delete(*node.children, node)
 
 
-def inherits(node: Node):
-    if node.label == CONFIG['EPSILON']:
-        node.label = None
-    elif not isinstance(node.label, list):
-        node.label = [x.label for x in node.children]
-        delete(node)
+def function(node: Node):
+    if 'return' not in node:
+        return
+
+    node['type'] = ' : ' + node['return']
+
+    if node.children:
+        ref = node['table'] = pd.concat([x['table'] for x in node.children])
+
+        if any(ref.index.duplicated()):
+            raise TypeError(f'Duplication of parameters and variables found in function "{node["name"]}"')
+
+        parameters = ref.loc[ref['kind'] == 'parameter']['type'].to_list()
+        node['signature'] = parameters
+        node['type'] = ', '.join(parameters) + node['type']
+
+        while True and node.children:
+            if node.children[0]['kind'] == 'body':
+                # node['link'] = node.children[0]
+                node.children[0].drop('table')
+                break
+            del node.children[0]
+
+        node['link'] = node
+        node.blacklist('table', 'signature')
+
+        node.override('__eq__',
+                       lambda x:
+                       isinstance(x, Node) and \
+                       x['name'] == node['name'] and \
+                       x['type'] == node['type'] and \
+                       x['kind'] == node['kind'])
+
+        if '::' in node['name']:
+            node['binding'], _ = node['name'].split('::')
+            node.blacklist('type')
+    node.blacklist('binding', 'return')
 
 
 def Class(node: Node):
-    inherits(node.children[1])
+    if 'inherits' in node:
+        node['inherits'] = set(node['inherits'].split(', '))
 
-    name = node.children[0].label
-    inheritance = node.children[1].label
-    link = node.children[2]
+    if node.children:
+        child = node.children.pop()
+        node['link'] = child
+        child.update(node)
+        index = node.parent.children.index(node)
+        node.parent.children[index] = child
+        child.parent = node.parent
 
-    node.label = pd.Series(['class', None, None, link, inheritance], index=nlabels + ['inherits'], name=name)
-    node.children.pop()
-    delete(node)
+        child.override('__eq__',
+                       lambda x:
+                       isinstance(x, Node) and \
+                       x['name'] == child['name'] and \
+                       x['kind'] == child['kind'])
+
+        child.blacklist('table', 'inherits')
+
+    else:
+        node.blacklist('table', 'inherits')
+
+
+def body(node: Node):
+    if node.children and 'table' in node.children[0]:
+        node['table'] = node.children[0]['table']
+        del node.children[0]
+    else:
+        node['table'] = pd.DataFrame()
+
+
+def prog(node: Node):
+    child = node.children.pop()
+    node['table'] = child['table']
+    node.adopt(*child.children)
+    del child
+    table = node['table']
+
+
+    #CLASSES
+    buffer = deque(table['link'][table['kind'] == 'class'].to_list())
+    defined = set()
+    while buffer:
+        length = len(buffer)
+
+        for i in range(length):
+
+            first = buffer.popleft()
+            if 'inherits' not in first:
+                defined.add(first['name'])
+
+            elif not first['inherits'].difference(defined):
+                frame = pd.concat([table.loc[x]['link']['table'] for x in first['inherits']])
+                if any(frame.index.duplicated()):
+                    raise TypeError(f'duplicates found for inheritance:\r\n{str(frame)}')
+
+                for name, series in frame.iterrows():
+                    if name in first['table'].index:
+                        print('something')
+                    else:
+                        first['table'] = first['table'].append(series)
+
+
+                defined.add(first['name'])
+                first.drop('inherits')
+
+            else:
+                buffer.append(first)
+
+        if length == len(buffer):
+            raise TypeError('no change')
+
+    #FUNCTIONS
+    buffer = deque(table['link'][table['kind'] == 'function'].to_list())
+    while buffer:
+        func = buffer.popleft()
+        if 'binding' not in func:
+            continue
+        name = func['name']
+
+        if func['binding'] not in table.index:
+            raise TypeError(f'function "{name}" overrides non-existent class "{func["binding"]}"')
+
+        binding, name = func['name'].split('::')
+
+        reference = table.loc[binding]['link']
+
+        if reference['kind'] != 'class':
+            raise TypeError(f'function "{name}" attempting to override a global function "{func["name"]}"')
+
+        if name not in reference['table'].index:
+            raise TypeError(f'function "{name}" overriding non-existent class function')
+
+
+        node.children.remove(func)
+        table.drop(index=func['name'], inplace=True)
+
+        c = reference['table'].loc[name]['link']
+        i = reference.children.index(c)
+        reference.children[i] = func
+        reference['table'].loc[name]['link'] = func
+        func.parent = reference
+        func['name'] = name
 
 
 def main(node: Node):
-    child = node.children.pop()
-    child.parent = node.parent
-    node.label = pd.Series(['function', None, None, child], index=nlabels, name='main')
+    if node.children:
 
 
-def inheritance_check(node: Node):
-    heap = []
+        child = node.children.pop()
+        node['link'] = child
 
-    for index, series in node.label.iterrows():
-        if series['inherits'] is None:
-            continue
-        queue = deque(series['inherits'])
+        child.parent = node.parent
+        index = node.parent.children.index(node)
+        node.parent.children[index] = child
+        child.update(node)
+        child.blacklist('table')
 
-        visited = {index}
-
-        while queue:
-            name = queue.pop()
-            if name in visited:
-                raise RecursionError('cyclic inheritance detected')
-            elif name not in node.label.index:
-                raise TypeError('inheritance not defined')
-
-            visited.add(name)
-            if node.label.loc[name]['inherits']:
-                queue.extend(node.label.loc[name]['inherits'])
-
-        if len(visited) != 1:
-            hq.heappush(heap, (len(visited) - 1, index))
-
-    while heap:
-        _, index = hq.heappop(heap)
-        pointer = node.label.loc[index]
-        entry = pointer['link'].label
-        links = pointer['inherits']
-        frame = pd.DataFrame(columns=nlabels)
-
-        for name in links:
-            frame = frame.append(node.label.loc[name]['link'].label)
-            if any(frame.index.duplicated()):
-                raise NameError('Duplicate found')
-
-        node.label.loc[index]['inherits'] = None
-
-        for index, series in frame.iterrows():
-            if index in entry.index:
-                if series['type'] == entry.loc[index]['type'] and \
-                        series['kind'] == entry.loc[index]['kind'] and \
-                        series['visibility'] == entry.loc[index]['visibility']:
-                    print('warning override')
-                else:
-                    raise TypeError('multiple definitions')
-            else:
-
-                pointer['link'].label = entry.append(series)
-    node.label.drop(columns='inherits', inplace=True)
-
-
-def function_binding(node: Node):
-    for index, series in node.label.iterrows():
-        if '::' in index:
-            class_name, func_name = series.name.split('::')
-            func_type = series['type']
-
-            if class_name not in node.label.index:
-                raise TypeError('class binding not found')
-
-            function = node.label.loc[class_name]['link']
-
-            if func_name not in function.label.index:
-                raise TypeError(f'function name {func_name} does not exist in class {class_name}')
-            # elif func_type not in node.label.loc[class_name]['link'].loc[func_name]:
-            #     raise TypeError('function signature doesnt exist')
-
-            series['link'].parent = function
-            function.label.loc[func_name]['link'] = series['link']
-
-            node.label.drop(index=series.name, inplace=True)
-
-
-def call(node: Node):
-    first = node.children[0]
-
-    if node.parent.label == '.':
-        node.parent.children.pop()
-        node.parent.children.append(first)
-        first.parent = node.parent
-
-        previous = node
-        current = node.parent
-        while current.label == '.':
-            previous = current
-            current = current.parent
-
-        i = current.children.index(previous)
-        current.children[i] = node
-        previous.parent = node
-        node.parent = current
-        node.children[0] = previous
+    del node
 
 
 SYS = {
-    'dim': dim,
-    'vardecl': vardecl,
-    'params': params,
-    'func': func,
-    'decl': decl,
-    'class': Class,
+    'prog': prog,
     'group': group,
+    'function': function,
     'body': body,
-    'inherits': inherits,
+    'variable': variable,
+    'index': index,
+    'class': Class,
     'main': main,
-    'call': call,
 }

@@ -4,182 +4,123 @@ from _config import CONFIG
 from syntax import Node
 
 
-def search(node: Node, term):
-    parent = node.parent
-
+def _search(node: Node, item: str = None):
+    parent = node
+    query = node['name']
+    if item:
+        query = item
     while True:
         if not parent:
-            raise ReferenceError(f'reference {term} not found')
-        elif isinstance(parent.label, pd.DataFrame) and term in parent.label.index:
-            break
-        else:
+            raise TypeError(f'"{query}" not found')
+
+        if 'table' not in parent or query not in parent['table'].index:
             parent = parent.parent
+            continue
+        break
 
-    return parent, parent.label.loc[term]
-
-
-def _to_types(*nodes: Node):
-    return list(map(lambda x: x.label if isinstance(x.label, str) else x.label['type'], nodes))
+    return parent['table'].loc[query]['link']
 
 
-def delete(node: Node):
-    while node.children:
-        del node.children[-1]
-    node.children = []
+def vv(node: Node):
+    if 'type' in node:
+        return
+
+    parent = node
+    while True:
+        if not parent:
+            raise TypeError(f'variable "{node["name"]}" not found')
+
+        if 'table' not in parent or node['name'] not in parent['table'].index:
+            parent = parent.parent
+            continue
+
+        node['type'] = parent['table'].loc[node['name']]['type']
+        if 'index' in node:
+            node['type'] = node['type'].replace('[]', '', len(node['index']))
+        break
 
 
-def purge(node: Node):
-    delete(node)
-    if node.parent:
-        node.parent.children.remove(node)
-
-    del node
-
-
-def wipe(node: Node):
-    node.parent.label.drop(index=node.label, inplace=True)
-    node.parent = None
-    purge(node)
-
-
-def var(node: Node):
+def multop(node: Node):
     first, second = node.children
-    _, first = search(node, first.label)
-    second = len(second.children)
-    dimension = first['type']
-    dimension_size = dimension.count('[]')
+    if first != second:
+        raise TypeError(f'Multop values "{first["name"]}" and "{second["name"]}" are not of the same types')
 
-    if second > dimension_size:
-        msg = f'Variable of the form {first} called with index list of {second}'
-
-    dimension = dimension.replace('[]', '') + '[]' * (dimension_size - second)
-    node.label = first.copy()
-    node.label['type'] = dimension
-    delete(node)
+    node['type'] = first['type']
+    node.override('__eq__',
+                  lambda x: first == second)
 
 
-def bin(node: Node):
-    children = _to_types(*node.children)
+def addop(node: Node):
+    multop(node)
 
-    if any(children[0] != x for x in children):
-        msg = f'Operation "{node.label}" on sequence ' \
-              f'[{", ".join(children)}] is forbidden'
-        raise TypeError(msg)
 
-    node.label = children[0]
-    delete(node)
+def sign(node: Node):
+    node['type'] = node.children[-1]['type']
+    node['kind'] = node.children[-1]['kind']
 
 
 def args(node: Node):
-    children = _to_types(*node.children)
-    node.label = ', '.join(children)
-
-    delete(node)
+    node['signature'] = [x['type'] for x in node.children]
 
 
-def const(node: Node):
-    first, second = node.children
-    node.label = first.label
-    delete(node)
-
-
-def index(node: Node):
-    if node.label == CONFIG['EPSILON']:
-        node.label = ''
-    else:
-        node.label = '[]' * len(node.children)
-        delete(node)
-
-
-def call(node: Node):
-    first, second = node.children
-    first, second = first.label, second.label
-
-    if isinstance(first, str):
-        _, first = search(node, first)
-        first = first.label
-
-    if first['kind'] != 'function':
-        msg = f'Function call on a variable "{first.name}" is illegal'
-        raise TypeError(msg)
-
-    parameters, returns = first['type'].split(' : ')
-
-    if parameters != second:
-        msg = f'Function call on "{first.name}" ' \
-              f'with arguments signature of "{second}" ' \
-              f'does not match function signature of "{parameters}"'
-        raise TypeError(msg)
-
-    node.label = returns
-    delete(node)
+def function(node: Node):
+    if 'type' not in node and node.children:
+        node['signature'] = node.children[0]['signature']
 
 
 def dot(node: Node):
     first, second = node.children
-    name = first.label['type']
-
-    _, first = search(node, name)
-    first = first['link'].label
-    second = second.label
-
-    if not isinstance(second, str):
-        second = second.name
-
-    if second not in first.index:
-        msg = f'variable or function "{second}" ' \
-              f'not visible or existent in class "{name}"'
-        raise TypeError(msg)
-
-    node.label = first.loc[second]
-    delete(node)
 
 
-def return_type(node: Node):
-    child = _to_types(*node.children)[0]
-    parent = node.parent
+    reference = _search(first, first['type'])['table']
 
-    while not isinstance(parent.label, pd.DataFrame):
-        parent = parent.parent
+    if second['name'] not in reference.index:
+        raise TypeError(f'Call for "{first["name"]}.{second["name"]}" inconsistent')
 
-    link = parent
-    parent = parent.parent.label
-    parent = parent.loc[parent['link'] == link]
-    parent = parent.squeeze()
+    series = reference.loc[second['name']]
+    if second['kind'] != series['kind']:
+        raise TypeError(f'signature not matched')
+    if series['visibility'] == 'private':
+        raise TypeError(f'"{series.name}" is private')
 
-    _, returns = parent['type'].split(' : ')
+    if second['kind'] == 'variable':
+        node['type'] = second['type']
+    else:
+        signature, returns = series['type'].split(' : ')
+        node['type'] = returns
+    node['kind'] = 'variable'
 
-    if returns != child:
-        msg = f'defined return of type "{child}" ' \
-              f'does not match function "{parent.name}" ' \
-              f'return type of "{returns}"'
-        raise TypeError(msg)
 
-    purge(node)
+def assign(node: Node):
+    first, second = node.children
+    if first['type'] != second['type']:
+        raise TypeError(f'not the same on assign')
+    node['type'] = first['type']
 
+
+def relop(node: Node):
+    assign(node)
+
+def returns(node: Node):
+    node['type'] = node.children[0]['type']
+
+    current = node
+    while 'table' not in current:
+        current = current.parent
+
+    if current['return'] != node['type']:
+        raise TypeError(f'return type in function "{current["name"]}" not consistent')
 
 PHASE2 = {
-    'var': var,
-    'const': const,
-    'return': return_type,
+    'variable': vv,
+    'multop': multop,
+    'sign': sign,
     'args': args,
-    '-': bin,
-    '*': bin,
-    '+': bin,
-    '/': bin,
-    '<=': bin,
-    '>=': bin,
-    '=': bin,
-    '<': bin,
-    '>': bin,
-    '.': dot,
-    'call': call,
-    'write': purge,
-    'read': purge,
-    'block': purge,
-    'while': purge,
-    'if': purge,
-    'body': wipe,
+    'function': function,
+    'dot': dot,
+    'addop': addop,
+    'assign': assign,
+    'relop': relop,
+    'return': returns,
 
 }
-

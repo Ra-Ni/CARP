@@ -21,12 +21,9 @@ class AST:
         graph = pydot.Dot('AST', graph_type='digraph')
         nodes = {}
         for node in self.bfs():
-            label = node.label
-            if isinstance(label, str) and label != 'ε':
-                label += ' '
+            label = node.to_string()
 
-
-            nodes[node.uid] = pydot.Node(node.uid, label=str(label))
+            nodes[node.uid] = pydot.Node(node.uid, label=label.replace('\r\n', '\l'))
             graph.add_node(nodes[node.uid])
 
             if node.parent:

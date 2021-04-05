@@ -7,3 +7,6 @@ class Token:
 
     def __str__(self):
         return self.type + '\n' + self.lexeme
+
+    def to_dict(self):
+        return {'name': self.lexeme, 'kind': self.type}

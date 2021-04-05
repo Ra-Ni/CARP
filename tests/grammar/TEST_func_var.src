@@ -9,6 +9,7 @@ func c(): void {
         integer i;
         integer j;
     }
+    i = 2;
 }
 
 

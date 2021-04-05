@@ -6,28 +6,28 @@ from syntax import Node, AST
 from lex import Scanner
 import tools.ucalgary as ucal
 
+IFS = ','
+
 
 def _new(parser):
-    parser.nodes.append(Node(parser.top[4:]))
+    parser.nodes.append(Node(kind=parser.top[4:]))
 
 
 def _push(parser):
-    parser.nodes.append(Node(parser.last_production.lexeme))
+    parser.nodes.append(Node(**parser.last_production.to_dict()))
 
 
-def _iunary(parser):
-    second = parser.nodes.pop()
-    first = parser.nodes.pop()
-
-    second.adopt(first)
-    parser.nodes.append(second)
+def _append(parser):
+    value = parser.nodes.pop()['name']
+    key = parser.top[4:]
+    parser.nodes[-1][key] += value
 
 
-def _epop(parser):
-    parent = parser.nodes[-1]
-    child = parent.children[-1]
-    if child.label == 'ε':
-        parent.children.pop()
+def _conditional_unary(parser):
+    if parser.nodes[-1].children:
+        _unary(parser)
+    else:
+        parser.nodes.pop()
 
 
 def _unary(parser):
@@ -38,35 +38,12 @@ def _unary(parser):
     parser.nodes.append(first)
 
 
-def _chk(parser):
-    if not parser.nodes[-1].children:
-        parser.nodes[-1].label = 'ε'
-
-
-def _chk_merge(parser):
-    parent = parser.nodes[-1]
-    children = parent.children
-    if len(children) == 1:
-        child = children[0]
-        parser.nodes.pop()
-        child.parent = None
-        parser.nodes.append(child)
-
-
 def _nop(parser):
-    parser.nodes.append(Node('ε'))
-
-
-def _cond_unary(parser):
-    if parser.nodes[-1].label == 'ε':
-        parser.nodes.pop()
-    else:
-        _unary(parser)
+    parser.nodes.append(Node(name='ε'))
 
 
 def _swap(parser):
-    parent = parser.nodes[-1]
-    parent.children[-1], parent.children[-2] = parent.children[-2], parent.children[-1]
+    parser.nodes[-1], parser.nodes[-2] = parser.nodes[-2], parser.nodes[-1]
 
 
 def _bin(parser):
@@ -78,9 +55,58 @@ def _bin(parser):
     parser.nodes.append(op)
 
 
-def _shift(parser):
-    node = parser.nodes[-1]
-    node.children = [node.children[-1]] + node.children[:-1]
+def _update(parser):
+    _, key, value = parser.top.split('_', 2)
+    parser.nodes[-1][key] = value
+
+
+def _map(parser):
+    node = parser.nodes.pop()
+    _, first, second = parser.top.split('_', 2)
+
+    parser.nodes[-1][first] = node[second]
+
+
+def _begin(parser):
+    parser.nodes.append('BEGIN')
+
+
+def _end(parser):
+    current = parser.nodes.pop()
+    nodes = []
+    while current != 'BEGIN':
+        nodes.append(current)
+        current = parser.nodes.pop()
+    if parser.nodes[-1] == 'BEGIN':
+        parser.nodes.pop()
+
+    nodes.reverse()
+
+    parser.nodes.append(Node(name=IFS.join(x['name'] for x in nodes)))
+
+
+def _ifs(parser):
+    delimiter = parser.top[4:]
+    if not delimiter:
+        delimiter = ''
+    elif delimiter == 'sr':
+        delimiter = '::'
+    else:
+        delimiter = ','
+
+    global IFS
+    IFS = delimiter
+
+
+def _insert(parser):
+    key, value = parser.top.split('_', 1)
+    parser.nodes[-1][key.lower()] = value.replace('_', ' ')
+
+
+def _as(parser):
+    value = parser.nodes.pop()['name']
+    key = parser.top[3:]
+    parser.nodes[-1][key] = value
 
 
 def _epsilon(parser):
@@ -90,17 +116,28 @@ def _epsilon(parser):
 _OPS = {
     'NEW': _new,
     'PUSH': _push,
-    'EPOP': _epop,
     'UNARY': _unary,
-    'CHK': _chk,
     'NOP': _nop,
     'BIN': _bin,
-    'COND_UNARY': _cond_unary,
-    'IUNARY': _iunary,
-    'CHK_MERGE': _chk_merge,
-    'SHIFT': _shift,
     'ε': _epsilon,
-    'SWAP': _swap
+    'SWAP': _swap,
+    'BEGIN': _begin,
+    'END': _end,
+    'IFS': _ifs,
+    'INSERT': _insert,
+    'AS': _as,
+    'APP': _append,
+    'MAP': _map,
+    'UPD': _update,
+    'CUNARY': _conditional_unary
+}
+
+_SPEC = {
+    'UPD',
+    'MAP',
+    'APP',
+    'AS',
+    'INSERT'
 }
 
 
@@ -179,7 +216,7 @@ class Parser:
                 if non_terminal:
                     self._error_logger.debug(f'[{self._lookahead.location}]INFO::{self.top} → {" ".join(non_terminal)}')
                     self._stack.pop()
-                    if ['ε'] != non_terminal:
+                    if [CONFIG['EPSILON']] != non_terminal:
                         self._stack.extend(non_terminal[::-1])
 
                 else:
@@ -214,8 +251,13 @@ class Parser:
         non_terminals = ll1.index
 
         ops = _OPS.copy()
-        ops.update([(x, _OPS['NEW']) for x in filter(lambda x: 'NEW' in x, non_terminals.to_list())])
-        ops.pop('NEW')
+
+        for reference in filter(lambda x: '_' in x, non_terminals.to_list()):
+            key, _ = reference.split('_', 1)
+            ops[reference] = _OPS['INSERT'] if key not in _OPS else _OPS[key]
+
+        for spec in _SPEC:
+            ops.pop(spec)
 
         error_logger = logging.getLogger(str(uuid.uuid4()))
         derivations_logger = logging.getLogger(str(uuid.uuid4()))
