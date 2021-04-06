@@ -10,6 +10,7 @@ class LINEAR inherits POLYNOMIAL {
 
 	public func build(float A, float B) : LINEAR;
 	public func evaluate(float x) : float;
+
 };
 
 class QUADRATIC inherits POLYNOMIAL {
@@ -77,13 +78,14 @@ func QUADRATIC::build(float A, float B, float C) : QUADRATIC
   var
   {
     QUADRATIC new_function;
+
   }
   new_function.a = A;
   new_function.b = B;
   new_function.c = C;
   return (new_function);
 }
-  
+
 
 // ====== main ====== //
 main

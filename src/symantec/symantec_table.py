@@ -1,5 +1,6 @@
 from . import *
 from syntax import AST
+from . import PHASE2
 
 
 class SymantecTable:
@@ -14,9 +15,9 @@ class SymantecTable:
             if node['kind'] in SYS:
                 SYS[node['kind']](node)
 
-        # nodes = list(ast.bfs())
-        # nodes.reverse()
-        #
-        # for node in nodes:
-        #     if node['kind'] in PHASE2:
-        #         PHASE2[node['kind']](node)
+        nodes = list(ast.bfs())
+        nodes.reverse()
+
+        for node in nodes:
+            if node['kind'] in PHASE2:
+                PHASE2[node['kind']](node)

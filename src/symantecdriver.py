@@ -7,7 +7,7 @@ from lex import *
 from symantec import *
 from syntax import *
 
-EXAMPLE = '../examples/syntax/polynomial_correct.src'
+EXAMPLE = '../examples/syntax/polynomialsemanticerrors.src'
 
 
 new_label = ('kind', 'type', 'visibility', 'link')
@@ -59,7 +59,7 @@ def help(exception: Exception = None):
 
 if __name__ == '__main__':
 
-    try:
+    # try:
         errors = logging.FileHandler('errors.log', mode='w', encoding='utf-8', delay=True)
         errors.setLevel(logging.ERROR)
 
@@ -72,5 +72,5 @@ if __name__ == '__main__':
         symantec_table.parse(ast)
 
         ast.render('test.png')
-    except Exception as err:
-        help(err)
+    # except Exception as err:
+    #     help(err)

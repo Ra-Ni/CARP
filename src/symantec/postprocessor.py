@@ -1,126 +1,155 @@
-import pandas as pd
-
-from _config import CONFIG
+import logging
 from syntax import Node
 
 
 def _search(node: Node, item: str = None):
-    parent = node
+    parent = node.parent
+
     query = node['name']
     if item:
         query = item
+
     while True:
         if not parent:
-            raise TypeError(f'"{query}" not found')
-
+            node.parent.children.remove(node)
+            return None
         if 'table' not in parent or query not in parent['table'].index:
             parent = parent.parent
             continue
         break
 
-    return parent['table'].loc[query]['link']
+    return parent['table'].loc[query]
 
 
-def vv(node: Node):
+def _variable(node: Node):
     if 'type' in node:
         return
 
-    parent = node
-    while True:
-        if not parent:
-            raise TypeError(f'variable "{node["name"]}" not found')
+    table = _search(node, node['name'])
+    node['type'] = None if table is None else table['type']
 
-        if 'table' not in parent or node['name'] not in parent['table'].index:
-            parent = parent.parent
-            continue
-
-        node['type'] = parent['table'].loc[node['name']]['type']
-        if 'index' in node:
-            node['type'] = node['type'].replace('[]', '', len(node['index']))
-        break
+    if 'index' in node:
+        node['type'] = node['type'].replace('[]', '', len(node['index']))
 
 
-def multop(node: Node):
+def _binop(node: Node, type: str):
+    if len(node.children) != 2:
+        PHASE2['log'].error(f'ERROR::{type}::Unresolved object {node.children[0]["name"]}')
+        return
+
     first, second = node.children
-    if first != second:
-        raise TypeError(f'Multop values "{first["name"]}" and "{second["name"]}" are not of the same types')
-
-    node['type'] = first['type']
-    node.override('__eq__',
-                  lambda x: first == second)
-
-
-def addop(node: Node):
-    multop(node)
+    if 'type' in first and 'type' in second:
+        first, second = first['type'], second['type']
+        if first != second:
+            PHASE2['log'].error(f'ERROR::{type.upper()}::Type mismatch {first} and {second}')
+        else:
+            node['type'] = first
 
 
-def sign(node: Node):
-    node['type'] = node.children[-1]['type']
-    node['kind'] = node.children[-1]['kind']
+def _sign(node: Node):
+    child = node.children.pop()
+    if node['name'] == '-':
+        child['name'] = node['name'] + child['name']
+
+    node.update(child)
 
 
-def args(node: Node):
-    node['signature'] = [x['type'] for x in node.children]
+def _args(node: Node):
+    node.parent['parameters'] = [x['type'] for x in node.children]
 
 
-def function(node: Node):
-    if 'type' not in node and node.children:
-        node['signature'] = node.children[0]['signature']
+def _function(node: Node):
+    if 'table' in node:
+        return
+
+    if node.parent['kind'] != 'dot':
+        series = _search(node, node['name'])
+        if series is not None:
+            param, out = series['type'].split(' : ')
+            param = param.split(', ')
+
+            if 'parameters' not in node:
+                node['parameters'] = []
+
+            if param == node['parameters']:
+                node['type'] = out
+
+            else:
+                PHASE2['log'].error(
+                    f'ERROR::FUNCTION::Parameters {param} for function {node["name"]} do not match {node["parameters"]}')
+            node.drop('parameters')
+        else:
+            PHASE2['log'].error(f'ERROR::FUNCTION::Function {node["name"]} not found')
 
 
 def dot(node: Node):
+    if len(node.children) != 2:
+        PHASE2['log'].error(f'ERROR::DOT::Unresolved object {node.children[0]["name"]}')
+        return
+
     first, second = node.children
+    reference = _search(first, first['type'])
 
+    if reference is None:
+        PHASE2['log'].error(
+            f'ERROR::DOT::Function/Variable call made on object {first["name"]} of type {first["type"]}')
+        return
 
-    reference = _search(first, first['type'])['table']
+    if second['name'] not in reference['link']['table'].index:
+        PHASE2['log'].error(f'ERROR::DOT::object {second["name"]} does not exist in {first["name"]}')
+        return
 
-    if second['name'] not in reference.index:
-        raise TypeError(f'Call for "{first["name"]}.{second["name"]}" inconsistent')
+    reference = reference['link']
+    reference = reference['table'].loc[second['name']]
 
-    series = reference.loc[second['name']]
-    if second['kind'] != series['kind']:
-        raise TypeError(f'signature not matched')
-    if series['visibility'] == 'private':
-        raise TypeError(f'"{series.name}" is private')
+    if second['kind'] != reference['kind']:
+        PHASE2['log'].error(f'ERROR::DOT::object kind {second["name"]} conflicts in {first["name"]}')
+        return
+    # if reference['visibility'] == 'private':
+    #     PHASE2['log'].error(f'ERROR::DOT::object {second["name"]} in {first["name"]} is private')
+    #     return
 
     if second['kind'] == 'variable':
         node['type'] = second['type']
     else:
-        signature, returns = series['type'].split(' : ')
+        parameters, returns = reference['type'].split(' : ')
+        if parameters.split(', ') != second['parameters']:
+            node_params = '' if 'parameters' not in node else node['parameters']
+            PHASE2['log'].error(
+                f'ERROR::FUNCTION::Parameters {parameters} for function {node["name"]} do not match {node_params}')
+            return
+
         node['type'] = returns
-    node['kind'] = 'variable'
 
 
-def assign(node: Node):
-    first, second = node.children
-    if first['type'] != second['type']:
-        raise TypeError(f'not the same on assign')
-    node['type'] = first['type']
+def _returns(node: Node):
+    if len(node.children) != 1:
+        PHASE2['log'].error(f'ERROR::RETURN::Unresolved object {node.children[0]["name"]}')
+        return
 
-
-def relop(node: Node):
-    assign(node)
-
-def returns(node: Node):
     node['type'] = node.children[0]['type']
 
     current = node
     while 'table' not in current:
         current = current.parent
 
-    if current['return'] != node['type']:
-        raise TypeError(f'return type in function "{current["name"]}" not consistent')
+    _, return_type = current['type'].split(' : ')
+    if return_type != node.children[0]['type']:
+        PHASE2['log'].error(
+            f'ERROR::RETURN::function {current["name"]} returns {return_type}, but given {node.children[0]["type"]}')
+
 
 PHASE2 = {
-    'variable': vv,
-    'multop': multop,
-    'sign': sign,
-    'args': args,
-    'function': function,
+    'log': logging.getLogger('phase2'),
+    'variable': _variable,
+    'multop': lambda x: _binop(x, 'multop'),
+    'sign': _sign,
+    'args': _args,
+    'function': _function,
     'dot': dot,
-    'addop': addop,
-    'assign': assign,
-    'relop': relop,
-    'return': returns,
+    'addop': lambda x: _binop(x, 'addop'),
+    'assign': lambda x: _binop(x, 'assign'),
+    'relop': lambda x: _binop(x, 'relop'),
+    'return': _returns,
 
 }
