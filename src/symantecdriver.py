@@ -1,113 +1,76 @@
-import uuid
-from collections import deque
-from operator import itemgetter
+import logging
 
-import pandas as pd
 import pydot
-from tabulate import tabulate
 
-from lex import Scanner, Token
-from symantec.label import labels, nlabels
-from symantec.postprocessor import PHASE2
-from symantec.preprocessor import SYS
-from syntax import Parser, AST, Node
+
+from lex import *
+from symantec import *
+from syntax import *
 
 EXAMPLE = '../examples/syntax/polynomial_correct.src'
 
+
 new_label = ('kind', 'type', 'visibility', 'link')
 
-#
-# def render(root: Node, src: str):
-#     graph = pydot.Dot('AST', graph_type='digraph')
-#     nodes = {}
-#     visited = set()
-#     for n in uniquebfs(root):
-#         if n.uid in visited:
-#             continue
-#         else:
-#             visited.add(n.uid)
-#         if isinstance(n.label, pd.DataFrame):
-#             label = str(tabulate(n.label, headers='keys', tablefmt='github', numalign='left', floatfmt=',1.5f'))
-#
-#         else:
-#             label = str(n.label)
-#
-#         # label += f'\n\nid: {n.uid}\n\nparent: {"None" if not n.parent else n.parent.uid}'
-#         nodes[n.uid] = pydot.Node(n.uid, label=label.replace('\r\n', '\l'), shape='box', )
-#         graph.add_node(nodes[n.uid])
-#
-#         if n.parent:
-#             graph.add_edge(pydot.Edge(nodes[n.parent.uid], nodes[n.uid]))
-#
-#     graph.write_png(src, encoding='utf-8')
-#
-#
-# def uniquebfs(node: Node):
-#     queue = deque([node])
-#     visited = set()
-#     while queue:
-#         parent = queue.pop()
-#         if parent.uid in visited:
-#             continue
-#
-#         visited.add(parent.uid)
-#         if isinstance(parent.label, pd.DataFrame) and 'link' in parent.label.columns:
-#             children = parent.label['link'].to_list()
-#             children = list(filter(lambda x: x is not None, children))
-#             queue.extend(reversed(children))
-#         else:
-#             queue.extend(reversed(parent.children))
-#         yield parent
-#
-#
-# def bfs(node: Node):
-#     queue = deque([node])
-#
-#     while queue:
-#         parent = queue.pop()
-#
-#         if isinstance(parent.label, pd.DataFrame):
-#             children = parent.label['link'].to_list()
-#             children = list(filter(lambda x: x is not None, children))
-#             queue.extend(reversed(children))
-#         else:
-#             queue.extend(reversed(parent.children))
-#         yield parent
-#
+
+def bfs(root: Node):
+    queue = deque([(None, root)])
+    while queue:
+        parent, n = queue.popleft()
+        if 'table' in n and 'link' in n['table'].columns:
+            children = n['table']['link'].to_list()
+
+            children = list(filter(lambda x: x is not None, children))
+            children = list(map(lambda x: (n, x), children))
+
+        else:
+            children = list(map(lambda x: (n, x), n.children))
+
+        queue.extend(children)
+        yield parent, n
+
+
+def render(ast: AST, src: str):
+    graph = pydot.Dot('AST', graph_type='digraph')
+    nodes = {}
+    for parent, node in bfs(ast.root):
+        label = node.to_string()
+
+        nodes[node.uid] = pydot.Node(node.uid, label=label.replace('\r\n', '\l'))
+        graph.add_node(nodes[node.uid])
+
+        if parent:
+            graph.add_edge(pydot.Edge(nodes[parent.uid], nodes[node.uid]))
+    graph.write_png(src, encoding='utf-8')
+
+
+def help(exception: Exception = None):
+    print(
+        """symantecdriver.py <file>
+
+    <file>:
+        Source code file ending with the extension .src\n""")
+
+    if exception:
+        print(exception)
+
+    exit(0)
+
 
 if __name__ == '__main__':
-    scanner = Scanner.load(EXAMPLE, suppress_comments=1)
-    syntax_analyzer = Parser.load()
-    response = syntax_analyzer.parse(scanner)
-    ast = syntax_analyzer.ast
-    nodes = list(ast.bfs())
-    nodes.reverse()
 
-    for node in nodes:
-        if node['kind'] in SYS:
-            SYS[node['kind']](node)
+    try:
+        errors = logging.FileHandler('errors.log', mode='w', encoding='utf-8', delay=True)
+        errors.setLevel(logging.ERROR)
 
-    ast = syntax_analyzer.ast
-    nodes = list(ast.bfs())
-    nodes.reverse()
 
-    for node in nodes:
-        if node['kind'] in PHASE2:
-            PHASE2[node['kind']](node)
-    #function_binding(ast.root)
-    #inheritance_check(ast.root)
+        scanner = Scanner.load(EXAMPLE, suppress_comments=1)
+        syntax_analyzer = Parser.load()
+        response = syntax_analyzer.parse(scanner)
+        ast = syntax_analyzer.ast
+        symantec_table = SymantecTable(errors)
+        symantec_table.parse(ast)
 
-    # nodes = list(filter(lambda x: isinstance(x.label, str), bfs(ast.root)))
-    # nodes.reverse()
-    # visited = set()
-    # for node in nodes:
-    #     if node.uid in visited:
-    #         continue
-    #     visited.add(node.uid)
-    #
-    #     if node.label in PHASE2:
-    #         PHASE2[node.label](node)
-    #     if isinstance(node.label, Token) and node.label.lexeme == node.label.type and node.label.lexeme in SYS:
-    #         PHASE2[node.label.lexeme](node)
-
-    ast.render('test.png')
+        ast.render('test.png')
+    except Exception as err:
+        help(err)

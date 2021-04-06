@@ -77,7 +77,9 @@ class Node:
         return pd.Series(data, index=list(data.keys()), name=name)
 
     def to_string(self):
-        txt = [str(self._uid)]
+        txt = []#str(self.uid)]
+        # if self.parent:
+        #     txt.append('parent: ' + str(self.parent.uid))
         for key, item in self.data.items():
             if isinstance(item, pd.DataFrame):
                 item = str(tabulate(item, headers='keys', tablefmt='github', numalign='left', floatfmt=',1.5f'))

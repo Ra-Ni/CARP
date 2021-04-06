@@ -266,6 +266,117 @@ empty.
 ![](doc/syntax/design.png)
 
 
+
+## Symantec Analyzer
+
+
+### Configuration File
+
+The configuration file is based in ```grammar.conf```, where new commands were added to simplify the abstract tree creation
+
+### Command Line Arguments
+
+```shell
+symantecdriver.py <file>
+
+    <file>:
+        Source code file ending with the extension .src
+```
+
+### Symantec Tree
+
+The symantec library contains operators which are defined within the library itself. The user can simply edit the order of the operators in
+```_config/grammar.conf``` if they wish to change the behavior of the program for the production of the abstract syntax tree. Some operators include:
+
+1. **SWAP**: Swaps the topmost node in the stack with the second topmost node:
+```shell
+DataMember -> Visibility MemberDecl SWAP MAP_visibility_kind .
+```
+
+2. **CUNARY**: Conditional UNARY operator. Applies UNARY only if the node is not an epsilon node, else pops it from stack:
+```shell
+FuncBody -> lcurbr NEW_body LocalDecls StatementList CUNARY rcurbr .
+
+LocalDecls -> var NEW_group lcurbr VarDeclList rcurbr CUNARY
+    | .
+```
+
+3. **APP_X**: Pops the topmost node from the stack. Then, appends to the contents of the new topmost stack the value stored in the previous topmost node with key of X:
+```shell
+VarDecl -> NEW KIND_variable Type AS_type id PUSH AS_name IFS BEGIN DimList END IFS_default APP_type .
+# This would append the node containing the dimensions into the node id using key 'type'
+```
+4. **MAP_X_Y**: Pops the topmost node from the stack and gets the contents C of the node matching key Y. Then, appends C into the new topmost node using key X:
+```shell
+DataMember -> Visibility MemberDecl SWAP MAP_visibility_kind .
+# Maps the contents C of 'kind' from the top node. Pops it. Then, adds C to the new topmost node using key 'visibility'
+```
+
+5. **AS_X**: Pops the topmost node from the stack. Then adds its contents C to the new topmost node using key X as the identifier:
+```shell
+VarDecl -> NEW KIND_variable Type AS_type id PUSH AS_name IFS BEGIN DimList END IFS_default APP_type .
+# Type is pushed onto stack with contents C, which is one of 'integer', 'float', 'string' or 'id'. The contents C is then stored in node NEW using key 'type'
+
+ClassDecl -> class NEW KIND_class id PUSH AS_name InheritList lcurbr NEW_group MembList CUNARY rcurbr semi .
+MemberDecl -> func NEW KIND_function id PUSH AS_name FuncDecl semi
+	| VarDecl semi .
+```
+
+6. **IFS_X**: The internal field separator of the program. When called, the value of IFS is stored for future use with BEGIN/END statements. If X is not defined, then IFS is an empty string. The default IFS value is ```,```:
+```shell
+VarDecl -> NEW KIND_variable Type AS_type id PUSH AS_name IFS BEGIN DimList END IFS_default APP_type .
+# IFS changes the value to ''
+FuncDef -> func PUSH KIND_function IFS_sr BEGIN id PUSH ScopeSpec END IFS_default AS_name FuncDecl FuncBody .
+# IFS_sr changes the value to '::'
+FuncDef -> func PUSH KIND_function IFS_sr BEGIN id PUSH ScopeSpec END IFS_default AS_name FuncDecl FuncBody .
+# IFS_default changes the value to ','. Any other IFS value not defined also changes it to ','
+
+```
+
+7. **UPD_X_Y**: Updates the contents of the topmost node, C, corresponding to key X to Y. Contents do not need to exist for them to be udpated:
+```shell
+Sign -> Sign2 PUSH UPD_kind_sign .
+# Changes the contents in kind to sign
+RelOp -> RelOp2 PUSH UPD_kind_relop .
+# Changes the contents in kind to relop
+```
+
+8. **X_Y**: If commands have not been specifically set, then define the default X_Y option to be the insert operation. Inserts key X with content Y into the topmost node of the stack:
+```shell
+VarDecl -> NEW KIND_variable Type AS_type id PUSH AS_name IFS BEGIN DimList END IFS_default APP_type .
+# Creates new content 'variable' using key 'kind'
+
+MemberDecl -> func NEW KIND_function id PUSH AS_name FuncDecl semi
+	| VarDecl semi .
+# Creates new content 'function' using key 'kind'
+```
+
+
+Using the default rules in the grammar configuration file, we can obtain the following trees: 
+
+![](doc/symantec/polynomial_correct.png)
+
+![](doc/symantec/polynomialsemanticerrors.png)
+
+### Design Details
+
+The symantec library includes two stages: the pre-processing and the post-processing stages. In the pre-processing stage, the tree
+is refined by removing, modifying, and merging nodes of specific kinds. For example, a node defined to have a kind of group
+will check for duplication amongst the nodes before merging them together into a table. Additionally, this step checks for
+issues with inheritance (such as cyclic inheritance), function calls on non-existent functions, and overriding or overloading
+issues.
+
+In contrast to the first stage, the second stage checks for nodes defined within a body (or definition). Each node is mapped to its type in a bottom-up
+manner, and checks are made to ensure consistency amongst variables or classes, their types, and their visibility.
+
+These two stages are executed sequentially, and the result is stored as an image. Issues detected during this phase are immediately reported.
+
+The following shows the results after running both phases on ```polynomial_correct.src```:
+
+![](doc/symantec/poly_correct2.png)
+
+
+
 ## Tools
 
 ### Automata (PyPi)

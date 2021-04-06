@@ -1,13 +1,12 @@
+import logging
 import re
 
 from collections import deque
 
-
 import pandas as pd
+from tabulate import tabulate
 
 from syntax import Node
-
-nlabels = ['kind', 'type', 'visibility', 'link']
 
 
 def delete(*nodes: Node):
@@ -17,16 +16,38 @@ def delete(*nodes: Node):
         del node
 
 
-def group(node: Node):
-    frame = pd.DataFrame([x.to_series() for x in node.children])
-    if any(frame.index.duplicated()):
-        raise TypeError(f'Duplicate found in table:\n{str(frame)}')
+def _duplicated_variables(table: pd.DataFrame):
+    v = table.index[table['kind'] == 'variable']
+    v = v.append(table.index[table['kind'] == 'parameter'])
+    v = v.to_list()
 
-    deletions = list(filter(lambda x: 'link' not in x, node.children))
-    delete(*deletions)
+    return len(v) != len(set(v))
 
-    frame = frame.where(frame.notnull(), None)
-    node['table'] = frame
+
+def _duplicated_functions(table: pd.DataFrame):
+    f = table[table['kind'] == 'function']['type']
+    f = f.index + ' ' * len(f.index) + f.values
+
+    return len(f) != len(set(f))
+
+
+def _tabulate(table: pd.DataFrame):
+    return str(tabulate(table, headers='keys', tablefmt='github', numalign='left', floatfmt=',1.5f'))
+
+
+def _group(node: Node):
+    data = pd.DataFrame([x.to_series() for x in node.children])
+    data = [data]
+
+    if 'table' in node.parent:
+        data.append(node.parent['table'])
+
+    data = pd.concat(data)
+    data.where(data.notnull(), None, inplace=True)
+    node.parent['table'] = data
+
+    # node.parent.children.remove(node)
+
 
 
 def variable(node: Node):
@@ -42,9 +63,10 @@ def variable(node: Node):
                   x['type'] == node['type'] and \
                   x['kind'] == node['kind'])
 
+
 def index(node: Node):
     if any([x['type'] != 'integer' for x in node.children]):
-        raise TypeError(f'Array indices "{",".join(x["name"] for x in node.children)}" is not of type integer.')
+        raise TypeError(f'Array indices "{",".join(x["name"] for x in node.children)}" is not of type integer')
 
     node.parent['index'] = [int(x['name']) for x in node.children]
     node.parent.blacklist('index')
@@ -57,168 +79,200 @@ def function(node: Node):
 
     node['type'] = ' : ' + node['return']
 
-    if node.children:
-        ref = node['table'] = pd.concat([x['table'] for x in node.children])
-
-        if any(ref.index.duplicated()):
-            raise TypeError(f'Duplication of parameters and variables found in function "{node["name"]}"')
-
-        parameters = ref.loc[ref['kind'] == 'parameter']['type'].to_list()
-        node['signature'] = parameters
-        node['type'] = ', '.join(parameters) + node['type']
-
-        while True and node.children:
-            if node.children[0]['kind'] == 'body':
-                # node['link'] = node.children[0]
-                node.children[0].drop('table')
-                break
-            del node.children[0]
-
+    if '::' in node['name']:
         node['link'] = node
-        node.blacklist('table', 'signature')
 
-        node.override('__eq__',
-                       lambda x:
-                       isinstance(x, Node) and \
-                       x['name'] == node['name'] and \
-                       x['type'] == node['type'] and \
-                       x['kind'] == node['kind'])
+    if 'table' in node:
+        table = node['table']
+        parameters = ', '.join(table[table['kind'] == 'parameter']['type'])
+    else:
+        node['table'] = pd.DataFrame()
+        parameters = ''
 
-        if '::' in node['name']:
-            node['binding'], _ = node['name'].split('::')
-            node.blacklist('type')
-    node.blacklist('binding', 'return')
+    node['link'] = node
+    node['type'] = parameters + ' : ' + node['return']
+    node.drop('return')
+    node.blacklist('table')
+    node.override('__eq__',
+                  lambda x:
+                  isinstance(x, Node) and \
+                  x['name'] == node['name'] and \
+                  x['type'] == node['type'] and \
+                  x['kind'] == node['kind'])
 
 
 def Class(node: Node):
     if 'inherits' in node:
         node['inherits'] = set(node['inherits'].split(', '))
 
-    if node.children:
-        child = node.children.pop()
-        node['link'] = child
-        child.update(node)
-        index = node.parent.children.index(node)
-        node.parent.children[index] = child
-        child.parent = node.parent
+    node['link'] = node
+    if 'table' not in node:
+        node['table'] = pd.DataFrame(columns=['kind', 'type', 'visibility', 'link'])
+    table = node['table']
 
-        child.override('__eq__',
-                       lambda x:
-                       isinstance(x, Node) and \
-                       x['name'] == child['name'] and \
-                       x['kind'] == child['kind'])
+    table['link'] = [None] * len(table.index)
 
-        child.blacklist('table', 'inherits')
-
-    else:
-        node.blacklist('table', 'inherits')
+    node.blacklist('table', 'inherits')
+    node.override('__eq__',
+                  lambda x:
+                  isinstance(x, Node) and \
+                  x['name'] == node['name'] and \
+                  x['kind'] == node['kind'])
 
 
 def body(node: Node):
-    if node.children and 'table' in node.children[0]:
-        node['table'] = node.children[0]['table']
-        del node.children[0]
-    else:
-        node['table'] = pd.DataFrame()
+    data = []
+    if 'table' in node.parent:
+        data.append(node.parent['table'])
+
+    if 'table' in node:
+        data.append(node['table'])
+
+    data.append(pd.DataFrame([['body', node]], index=['body'], columns=['kind', 'link']))
+
+    data = pd.concat(data)
+    data.where(data.notnull(), None, inplace=True)
+
+    node.parent['table'] = data
+
+    node.drop('table')
+    node.parent.children.remove(node)
 
 
-def prog(node: Node):
-    child = node.children.pop()
-    node['table'] = child['table']
-    node.adopt(*child.children)
-    del child
+
+def _has_duplicates(table: pd.DataFrame):
+    return _duplicated_functions(table) or _duplicated_variables(table)
+
+
+def _inheritance_handler(node: Node):
     table = node['table']
-
-
-    #CLASSES
     buffer = deque(table['link'][table['kind'] == 'class'].to_list())
     defined = set()
     while buffer:
         length = len(buffer)
 
-        for i in range(length):
+        for _ in range(length):
 
             first = buffer.popleft()
-            if 'inherits' not in first:
-                defined.add(first['name'])
 
-            elif not first['inherits'].difference(defined):
+            if 'inherits' in first and not first['inherits'].difference(defined):
                 frame = pd.concat([table.loc[x]['link']['table'] for x in first['inherits']])
-                if any(frame.index.duplicated()):
-                    raise TypeError(f'duplicates found for inheritance:\r\n{str(frame)}')
+                if _has_duplicates(frame):
+                    raise TypeError(f'Duplicates found while processing:\r\n{_tabulate(frame)}')
 
                 for name, series in frame.iterrows():
-                    if name in first['table'].index:
-                        print('something')
+                    if name in first['table'].index and series['type'] == first['table'].loc[name]['type']:
+                        print('Overriding or overloading')
                     else:
                         first['table'] = first['table'].append(series)
 
-
-                defined.add(first['name'])
                 first.drop('inherits')
 
+            if 'inherits' not in first:
+                defined.add(first['name'])
+
+                _func_handler(first, table)
             else:
                 buffer.append(first)
 
         if length == len(buffer):
-            raise TypeError('no change')
-
-    #FUNCTIONS
-    buffer = deque(table['link'][table['kind'] == 'function'].to_list())
-    while buffer:
-        func = buffer.popleft()
-        if 'binding' not in func:
-            continue
-        name = func['name']
-
-        if func['binding'] not in table.index:
-            raise TypeError(f'function "{name}" overrides non-existent class "{func["binding"]}"')
-
-        binding, name = func['name'].split('::')
-
-        reference = table.loc[binding]['link']
-
-        if reference['kind'] != 'class':
-            raise TypeError(f'function "{name}" attempting to override a global function "{func["name"]}"')
-
-        if name not in reference['table'].index:
-            raise TypeError(f'function "{name}" overriding non-existent class function')
+            raise TypeError(f'Cyclic dependency detected while processing: {", ".join(b["name"] for b in buffer)}')
 
 
-        node.children.remove(func)
-        table.drop(index=func['name'], inplace=True)
+def _func_handler(node: Node, table: pd.DataFrame):
+    funcs = table[table['kind'] == 'function']['link'].to_list()
+    funcs = list(filter(lambda x: x is not None, funcs))
+    if not funcs:
+        return
 
-        c = reference['table'].loc[name]['link']
-        i = reference.children.index(c)
-        reference.children[i] = func
-        reference['table'].loc[name]['link'] = func
-        func.parent = reference
-        func['name'] = name
+
+    func_overrides = list(filter(lambda x: '::' in x['name'] and x['name'].split('::')[0] == node['name'], funcs))
+
+    for func_def in func_overrides:
+        class_name, func_name = func_def['name'].split('::')
+        if func_name not in node['table'].index:
+            raise TypeError(f'No function "{func_name}" exists for class "{class_name}"')
+
+        func_reference = node['table'].loc[func_name]
+
+        if isinstance(func_reference, pd.DataFrame):
+            func_reference = func_reference.loc[func_reference['type'] == node['type']]
+            if func_reference.empty:
+                raise TypeError(f'No function "{func_name}" exists for class "{class_name}"')
+
+
+        table.drop(index=func_def['name'], inplace=True)
+        func_reference['link'] = func_def
+        func_def['name'] = func_name
+        node.adopt(func_def)
+
+
+def _bfs(root: Node):
+    queue = deque([root])
+
+    while queue:
+        parent = queue.popleft()
+        if 'table' in parent and 'link' in parent['table'].columns:
+
+            children = list(filter(lambda x: x is not None, parent['table']['link'].to_list()))
+            queue.extend(children)
+        yield parent
+
+
+def prog(node: Node):
+    for link in node['table']['link']:
+        if link:
+            node.adopt(link)
+
+    if _has_duplicates(node['table']):
+        raise TypeError(f'Duplicates detected in table:\r\n{_tabulate(node["table"])}')
+
+    node['name'] = 'prog'
+    _inheritance_handler(node)
+
+    defaults = node['table'].index.to_list() + ['void', 'float', 'integer', 'string']
+    defaults.remove('main')
+
+    for node in _bfs(node):
+        if 'table' in node:
+            for name, series in node['table'].iterrows():
+                if series['kind'] == 'function':
+                    types = series['type'].split(' : ')
+                    t = types.pop(0).split(', ')
+                    if isinstance(t, str):
+                        types.append(t)
+                    else:
+                        types.extend(t)
+
+                    for t in types:
+                        t = t.replace('[]', '')
+                        if t not in defaults:
+                            raise TypeError(f'type "{t}" in "{name}" undefined in "{node["name"]}"')
+                    if series['link'] is None:
+                        raise ReferenceError(f'function "{name}" undefined in class "{node["name"]}"')
+                elif series['type'] and series['type'].replace('[]', '') not in defaults:
+                    raise TypeError(f'type "{series["type"]}" in "{name}" undefined in "{node["name"]}"')
 
 
 def main(node: Node):
-    if node.children:
+    node['name'] = 'main'
 
+    node['link'] = node
 
-        child = node.children.pop()
-        node['link'] = child
-
-        child.parent = node.parent
-        index = node.parent.children.index(node)
-        node.parent.children[index] = child
-        child.update(node)
-        child.blacklist('table')
+    node.blacklist('table')
 
     del node
 
 
 SYS = {
-    'prog': prog,
-    'group': group,
-    'function': function,
-    'body': body,
-    'variable': variable,
-    'index': index,
-    'class': Class,
-    'main': main,
+    'log': logging.getLogger('test'),
+    # 'prog': prog,
+    'group': _group,
+    # 'function': function,
+    # 'body': body,
+    # 'parameter': variable,
+    # 'variable': variable,
+    # 'index': index,
+    # 'class': Class,
+    # 'main': main,
 }
