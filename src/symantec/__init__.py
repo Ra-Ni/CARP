@@ -1,3 +1,3 @@
-from .postprocessor import *
-from .preprocessor import *
-from .symantec_table import *
+from .symantec_table import SymantecTable
+
+__all__ = ['SymantecTable']

@@ -34,7 +34,7 @@ def _variable(node: Node):
 
 def _binop(node: Node, type: str):
     if len(node.children) != 2:
-        PHASE2['log'].error(f'ERROR::{type}::Unresolved object {node.children[0]["name"]}')
+        # PHASE2['log'].error(f'ERROR::{type}::Unresolved object {node.children[0]["name"]}')
         return
 
     first, second = node.children
@@ -84,7 +84,7 @@ def _function(node: Node):
 
 def dot(node: Node):
     if len(node.children) != 2:
-        PHASE2['log'].error(f'ERROR::DOT::Unresolved object {node.children[0]["name"]}')
+        # PHASE2['log'].error(f'ERROR::DOT::Unresolved object {node.children[0]["name"]}')
         return
 
     first, second = node.children
@@ -124,7 +124,7 @@ def dot(node: Node):
 
 def _returns(node: Node):
     if len(node.children) != 1:
-        PHASE2['log'].error(f'ERROR::RETURN::Unresolved object {node.children[0]["name"]}')
+       #PHASE2['log'].error(f'ERROR::RETURN::Unresolved object {node.children[0]["name"]}')
         return
 
     node['type'] = node.children[0]['type']
